@@ -1,8 +1,8 @@
-# 🧠 OpenClaw pg-memory v3.0.0
+# 🧠 OpenClaw pg-memory v3.1.0
 
 **Production-Ready Structured Memory for OpenClaw**
 
-> **Version:** 3.0.0 (Production Release)  
+> **Version:** 3.1.0 (Production Release)  
 > **Status:** ✅ Stable, Ready for Production  
 > **License:** MIT  
 > **Author:** Potter's Quill Media
@@ -372,7 +372,7 @@ MIT License - See [LICENSE](LICENSE) file
 
 ---
 
-## 🎯 What's New in v3.0.0
+## 🎯 What's New in v3.1.0
 
 ### **Major Features**
 
