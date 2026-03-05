@@ -84,7 +84,6 @@ See [`docs/INTEGRATION-OPENCLAW.md`](docs/INTEGRATION-OPENCLAW.md) for complete 
 - ✅ **Automatic Backups** - Daily backups at 3 AM with 7-day retention
 - ✅ **Context Management** - Intelligent compaction with summary generation
 - ✅ **Multi-Session Support** - Share memory across multiple OpenClaw instances
-- ✅ **Web Dashboard** - Visual interface at http://localhost:8080
 - ✅ **CLI Tools** - Command-line access to all memory functions
 
 ### **Technical Specifications**
@@ -115,7 +114,6 @@ This script will:
 5. Configure environment variables
 6. Set up automated backups
 7. Install pg-memory skill into OpenClaw
-8. Start the web dashboard
 
 ### **Manual Install**
 
@@ -176,24 +174,6 @@ python3 scripts/pg_memory.py --recent 10
 # Natural language query
 python3 scripts/pg_memory.py --query "What decisions did I make last week?"
 ```
-
-### **Web Dashboard**
-
-Access at: http://localhost:8080
-
-Features:
-- Real-time statistics
-- Search interface
-- Backup management
-- Observation browser
-
-### **OpenClaw Integration**
-
-pg-memory automatically activates when you use OpenClaw:
-
-- **Pre-compaction:** Saves conversation context before truncation
-- **Post-compaction:** Restores relevant context after reset
-- **Automatic:** No manual intervention required
 
 ---
 
@@ -398,7 +378,6 @@ MIT License - See [LICENSE](LICENSE) file
 
 - ✅ **Complete XID Migration** - All tables use time-sorted IDs
 - ✅ **Tiered Summary Generation** - Intelligent compaction summaries
-- ✅ **Web Dashboard** - Visual interface for memory management
 - ✅ **Automated Backups** - Daily backups with retention policy
 - ✅ **Enhanced Context Management** - Better pre/post compaction handling
 
