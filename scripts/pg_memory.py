@@ -1,5 +1,5 @@
 """
-PostgreSQL Memory System v2.7.6 — XID Session IDs + Multi-Instance Support
+PostgreSQL Memory System v3.0.0 — XID Session IDs + Multi-Instance Support
 Features: observations, summaries, chains, templates, conflict detection, reminders, 
 bulk import, multi-instance tracking, auto-generated instance IDs, XID session IDs
 """
@@ -153,7 +153,7 @@ class MemoryConfig:
     db_port: int = int(os.getenv("PG_MEMORY_PORT", _config_file.get("PG_MEMORY_PORT", "5432")))
     db_password: str = os.getenv("PG_MEMORY_PASSWORD", _config_file.get("PG_MEMORY_PASSWORD", ""))
     
-    # Instance identification (v2.7.0)
+    # Instance identification (v3.0.0)
     instance_id: str = get_or_create_instance_id()
     agent_label: str = os.getenv("OPENCLAW_NAME", _config_file.get("OPENCLAW_NAME", "unknown"))
     
@@ -419,7 +419,7 @@ class PostgresMemory:
             self.config.cache_ttl
         )
         
-        # Expose instance tracking (v2.7.0)
+        # Expose instance tracking (v3.0.0)
         self.instance_id = self.config.instance_id
         self.agent_label = self.config.agent_label
         
@@ -773,7 +773,7 @@ class PostgresMemory:
             return {'success': False, 'error': str(e)}
     
     # ============================================================================
-    # V2.7.5 INTELLIGENT CONTEXT MANAGEMENT
+    # V3.0.0 INTELLIGENT CONTEXT MANAGEMENT
     # ============================================================================
     
     def create_checkpoint(
@@ -786,7 +786,7 @@ class PostgresMemory:
         important_context: Optional[List[Dict]] = None,
         title: Optional[str] = None
     ) -> UUID:
-        """V2.7.5: Create a context checkpoint for conversation resumption.
+        """V3.0.0: Create a context checkpoint for conversation resumption.
         
         Checkpoints encapsulate key decisions and state at regular intervals,
         allowing efficient context compression and resumption.
@@ -877,7 +877,7 @@ class PostgresMemory:
         confidence: Optional[float] = None,
         tags: Optional[List[str]] = None
     ) -> UUID:
-        """V2.7.5: Log a structured decision with rationale.
+        """V3.0.0: Log a structured decision with rationale.
         
         Creates a permanent record of key choices, alternatives considered,
         and reasoning. Useful for future reference and accountability.
@@ -942,7 +942,7 @@ class PostgresMemory:
         expires_at: Optional[datetime] = None,
         source_observation_id: Optional[str] = None
     ) -> UUID:
-        """V2.7.5: Add frequently-accessed info to working memory cache.
+        """V3.0.0: Add frequently-accessed info to working memory cache.
         
         Working memory is like RAM - fast access for active context.
         Automatically prioritized and can expire.
@@ -985,7 +985,7 @@ class PostgresMemory:
                 return cache_id
     
     def get_working_memory(self, session_id: str, limit: int = 20) -> List[Dict]:
-        """V2.7.5: Get working memory cache entries (priority-ordered)."""
+        """V3.0.0: Get working memory cache entries (priority-ordered)."""
         with self._get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute("""
@@ -1004,7 +1004,7 @@ class PostgresMemory:
         always_include: bool = True,
         tags: Optional[List[str]] = None
     ) -> UUID:
-        """V2.7.5: Create a context anchor (always-loaded critical info).
+        """V3.0.0: Create a context anchor (always-loaded critical info).
         
         Anchors are never forgotten - always loaded into context regardless
         of age. Use for identity, core preferences, constraints, goals.
@@ -1043,7 +1043,7 @@ class PostgresMemory:
                 return anchor_id
     
     def get_context_anchors(self, session_id: str) -> List[Dict]:
-        """V2.7.5: Get all context anchors (always-loaded info)."""
+        """V3.0.0: Get all context anchors (always-loaded info)."""
         with self._get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute("""
@@ -1053,7 +1053,7 @@ class PostgresMemory:
                 return [dict(row) for row in cur.fetchall()]
     
     def get_full_context(self, session_id: str, max_tokens: int = 4000) -> str:
-        """V2.7.5: Assemble full context from anchors + working memory.
+        """V3.0.0: Assemble full context from anchors + working memory.
         
         Intelligently loads context within token limit:
         1. Always include anchors (critical info)
@@ -1098,7 +1098,7 @@ class PostgresMemory:
         return '\n'.join(context_parts)
     
     def get_decisions_pending_followup(self, session_id: Optional[str] = None, limit: int = 10) -> List[Dict]:
-        """V2.7.5: Get decisions that need followup action."""
+        """V3.0.0: Get decisions that need followup action."""
         with self._get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 if session_id:
@@ -1116,7 +1116,7 @@ class PostgresMemory:
                 return [dict(row) for row in cur.fetchall()]
     
     def prune_expired_working_memory(self) -> int:
-        """V2.7.5: Remove expired working memory entries."""
+        """V3.0.0: Remove expired working memory entries."""
         with self._get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute("SELECT prune_expired_working_memory()")
@@ -1129,7 +1129,7 @@ class PostgresMemory:
                 return result or 0
     
     def get_memory_stats(self) -> Dict[str, Any]:
-        """V2.7.5: Get comprehensive memory statistics."""
+        """V3.0.0: Get comprehensive memory statistics."""
         try:
             with self._get_connection() as conn:
                 with conn.cursor(cursor_factory=RealDictCursor) as cur:
@@ -1154,7 +1154,7 @@ class PostgresMemory:
         active_exchange_ids: Optional[List[str]] = None,
         metadata: Optional[Dict] = None
     ) -> UUID:
-        """V2.7.5: Log context window state for monitoring.
+        """V3.0.0: Log context window state for monitoring.
         
         Tracks what's actually in the active LLM context vs what's archived.
         Call this before/after compaction or when context state changes.
@@ -1193,7 +1193,7 @@ class PostgresMemory:
                 return log_id
     
     def get_context_utilization(self, session_id: str) -> Dict[str, Any]:
-        """V2.7.5: Get context window utilization metrics."""
+        """V3.0.0: Get context window utilization metrics."""
         with self._get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute("""
@@ -1216,7 +1216,7 @@ class PostgresMemory:
                 return {}
     
     def is_context_near_limit(self, session_id: str, threshold: float = 0.85) -> bool:
-        """V2.7.5: Check if context is near capacity.
+        """V3.0.0: Check if context is near capacity.
         
         Returns True if context utilization exceeds threshold.
         Use this to trigger proactive context management.
@@ -1236,7 +1236,7 @@ class PostgresMemory:
         return utilization >= threshold
     
     def suggest_context_compression(self, session_id: str) -> Dict[str, Any]:
-        """V2.7.5: Get recommendations for context compression.
+        """V3.0.0: Get recommendations for context compression.
         
         Analyzes context state and suggests what to compress/archive.
         
@@ -1302,10 +1302,10 @@ class PostgresMemory:
     ) -> str:
         """OpenClaw integration: Start or get session by session_key.
         
-        V2.7.6 XID SESSION IDS: Uses XID (12 bytes, 20-char string) instead of UUID
+        V3.0.0 XID SESSION IDS: Uses XID (12 bytes, 20-char string) instead of UUID
         for more compact, time-sorted session IDs. Falls back to UUID if xid not available.
         
-        V2.7.5 MULTI-INSTANCE SAFE: Automatically prefixes session_key with
+        V3.0.0 MULTI-INSTANCE SAFE: Automatically prefixes session_key with
         instance identifier to prevent collisions when multiple OpenClaw
         instances share the same database.
         
@@ -1667,8 +1667,8 @@ class PostgresMemory:
                         related_files,
                         related_urls,
                         bool(derived_from_exchange_ids),  # True if linked to exchanges
-                        self.instance_id[:36] if self.instance_id else None,  # v2.7.0
-                        self.agent_label[:100] if self.agent_label else None   # v2.7.0
+                        self.instance_id[:36] if self.instance_id else None,  # v3.0.0
+                        self.agent_label[:100] if self.agent_label else None   # v3.0.0
                     ))
                     result = cur.fetchone()
                     conn.commit()
@@ -2164,7 +2164,7 @@ class PostgresMemory:
                 return stats
     
     def get_instance_stats(self) -> List[Dict]:
-        """Get statistics by instance/agent (v2.7.0).
+        """Get statistics by instance/agent (v3.0.0).
         
         Returns list of dictionaries with stats per instance:
         - agent_label: Human-readable name

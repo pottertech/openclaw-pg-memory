@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-pg-memory v2.7.7 - Automated Test Suite
+pg-memory v3.0.0 - Automated Test Suite
 Run: python3 -m pytest tests/ -v
 """
 

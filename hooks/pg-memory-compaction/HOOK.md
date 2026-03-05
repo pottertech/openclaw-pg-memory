@@ -24,7 +24,7 @@ metadata:
 
 # pg-memory Compaction Hook
 
-Integrates pg-memory v2.7.6+ with OpenClaw's compaction system.
+Integrates pg-memory v3.0.0+ with OpenClaw's compaction system.
 
 ## What It Does
 

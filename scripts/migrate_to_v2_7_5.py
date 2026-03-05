@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-v2.7.5 Migration Script - Context Management Features
+v3.0.0 Migration Script - Context Management Features
 
 Applies schema changes and creates helper functions for:
 - Context checkpoints
@@ -69,7 +69,7 @@ def apply_schema(conn, schema_file: str) -> bool:
         return False
 
 def verify_tables(conn) -> bool:
-    """Verify all v2.7.5 tables exist."""
+    """Verify all v3.0.0 tables exist."""
     expected_tables = [
         'context_checkpoints',
         'decision_log',
@@ -102,7 +102,7 @@ def verify_tables(conn) -> bool:
     return all_present
 
 def verify_functions(conn) -> bool:
-    """Verify all v2.7.5 functions exist."""
+    """Verify all v3.0.0 functions exist."""
     expected_functions = [
         'touch_working_memory',
         'prune_expired_working_memory',
@@ -133,9 +133,9 @@ def verify_functions(conn) -> bool:
     return all_present
 
 def main():
-    """Run v2.7.5 migration."""
+    """Run v3.0.0 migration."""
     print("=" * 70)
-    print("pg-memory v2.7.5 Migration")
+    print("pg-memory v3.0.0 Migration")
     print("=" * 70)
     print(f"\nTarget: {DB_NAME}@{DB_HOST}")
     print(f"User: {DB_USER}")
@@ -156,7 +156,7 @@ def main():
     
     print("\n" + "=" * 70)
     if tables_ok and functions_ok:
-        print("✅ Migration COMPLETE! v2.7.5 is ready.")
+        print("✅ Migration COMPLETE! v3.0.0 is ready.")
         print("\nNew Features:")
         print("  • Context Checkpoints - Conversation summary points")
         print("  • Decision Log - Structured decision tracking")

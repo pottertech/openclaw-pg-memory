@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-OpenClaw Agent Memory Integration v2.7.5
+OpenClaw Agent Memory Integration v3.0.0
 Pre-compaction and Post-compaction handlers with Intelligent Context Management
 
 Usage:
@@ -66,7 +66,7 @@ def load_config() -> Dict:
     return defaults
 
 def get_memory() -> PostgresMemory:
-    """Get configured memory instance (v2.7.5)"""
+    """Get configured memory instance (v3.0.0)"""
     # PostgresMemory uses environment variables, not constructor args
     import os
     config = load_config()
@@ -84,7 +84,7 @@ def get_memory() -> PostgresMemory:
 
 def pre_compaction(context_data: Dict) -> bool:
     """
-    V2.7.5: Called before OpenClaw context reset.
+    V3.0.0: Called before OpenClaw context reset.
     Saves current session state + creates intelligent checkpoint.
     
     context_data should contain:
@@ -134,7 +134,7 @@ def pre_compaction(context_data: Dict) -> bool:
                 user_metadata=ex.get('metadata', {})
             )
         
-        # V2.7.5: Extract and log decisions from observations
+        # V3.0.0: Extract and log decisions from observations
         decisions_created = 0
         for obs in context_data.get('observations', []):
             try:
@@ -164,7 +164,7 @@ def pre_compaction(context_data: Dict) -> bool:
                 print(f"⚠️  Failed to capture observation: {e}")
                 # Continue with next observation
         
-        # V2.7.8: AUTO-GENERATE SUMMARY before compaction (TIERED approach)
+        # V3.0.0: AUTO-GENERATE SUMMARY before compaction (TIERED approach)
         exchanges = context_data.get('exchanges', [])
         num_exchanges = len(exchanges)
         summary_created = False
@@ -204,7 +204,7 @@ def pre_compaction(context_data: Dict) -> bool:
                 print(f"   ⚠️  {summary_type} summary generation skipped: {e}")
                 summary_created = False
         
-        # V2.7.5: Create context checkpoint BEFORE compaction
+        # V3.0.0: Create context checkpoint BEFORE compaction
         context_stats = context_data.get('context_stats', {})
         checkpoint_summary = _generate_checkpoint_summary(context_data)
         
@@ -234,7 +234,7 @@ def pre_compaction(context_data: Dict) -> bool:
             checkpoint_id = None
             # Continue anyway - checkpoint is nice-to-have, not critical
         
-        # V2.7.5: Log context state
+        # V3.0.0: Log context state
         if context_stats:
             mem.log_context_state(
                 session_id=session_id,
@@ -263,7 +263,7 @@ def pre_compaction(context_data: Dict) -> bool:
         else:
             summary_msg = ""
         
-        print(f"✅ Pre-compaction v2.7.8: Session saved{summary_msg} + checkpoint created ({decisions_created} decisions logged)")
+        print(f"✅ Pre-compaction v3.0.0: Session saved{summary_msg} + checkpoint created ({decisions_created} decisions logged)")
         
         # Also write minimal context marker (for post-compaction verification)
         marker_path = '/tmp/last_compaction_marker.json'
@@ -279,7 +279,7 @@ def pre_compaction(context_data: Dict) -> bool:
         return True
         
     except Exception as e:
-        print(f"⚠️  Pre-compaction v2.7.5 failed: {e}")
+        print(f"⚠️  Pre-compaction v3.0.0 failed: {e}")
         # Fallback to just markdown write
         return _emergency_markdown_write(context_data)
 
@@ -371,7 +371,7 @@ def _emergency_markdown_write(context_data: Dict) -> bool:
 
 def post_compaction(session_key: Optional[str] = None) -> Dict:
     """
-    V2.7.5: Called after OpenClaw context reset.
+    V3.0.0: Called after OpenClaw context reset.
     Retrieves intelligent context (anchors + working memory + recent).
     
     Returns:
@@ -400,7 +400,7 @@ def post_compaction(session_key: Optional[str] = None) -> Dict:
             'status': 'ok'
         }
         
-        # V2.7.5: Get session ID from session_key
+        # V3.0.0: Get session ID from session_key
         session_id = session_key
         if not session_id:
             # Get most recent session
@@ -415,15 +415,15 @@ def post_compaction(session_key: Optional[str] = None) -> Dict:
                     session_id = row[0] if row else None
         
         if session_id:
-            # V2.7.5: Get context anchors (always-loaded critical info)
+            # V3.0.0: Get context anchors (always-loaded critical info)
             anchors = mem.get_context_anchors(session_id)
             result['context_anchors'] = anchors
             
-            # V2.7.5: Get working memory cache (priority-ordered)
+            # V3.0.0: Get working memory cache (priority-ordered)
             working = mem.get_working_memory(session_id, limit=20)
             result['working_memory'] = working
             
-            # V2.7.5: Assemble full context (anchors + working memory)
+            # V3.0.0: Assemble full context (anchors + working memory)
             full_context = mem.get_full_context(session_id, max_tokens=4000)
             result['full_context'] = full_context
             
@@ -436,7 +436,7 @@ def post_compaction(session_key: Optional[str] = None) -> Dict:
             # Filter by importance manually
             result['observations'] = [o for o in obs if o.get('importance_score', 0) >= 0.7][:10]
             
-            # V2.7.5: Get latest checkpoint summary
+            # V3.0.0: Get latest checkpoint summary
             with mem._get_connection() as conn:
                 with conn.cursor() as cur:
                     cur.execute("""
@@ -455,12 +455,12 @@ def post_compaction(session_key: Optional[str] = None) -> Dict:
         
         mem.close()
         
-        print(f"✅ Post-compaction v2.7.5: Loaded {len(result['context_anchors'])} anchors, " +
+        print(f"✅ Post-compaction v3.0.0: Loaded {len(result['context_anchors'])} anchors, " +
               f"{len(result['working_memory'])} cache entries, {len(result['observations'])} observations")
         return result
         
     except Exception as e:
-        print(f"⚠️  Post-compaction v2.7.5 failed: {e}")
+        print(f"⚠️  Post-compaction v3.0.0 failed: {e}")
         # Return minimal fallback
         return {
             'session_key': session_key or 'new_session',

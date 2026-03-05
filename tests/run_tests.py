@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-pg-memory v2.7.7 - Automated Test Suite
+pg-memory v3.0.0 - Automated Test Suite
 Run: python3 tests/run_tests.py
 """
 
@@ -165,7 +165,7 @@ def test_database_stats():
 
 if __name__ == '__main__':
     print("=" * 70)
-    print("PG-MEMORY v2.7.7 - AUTOMATED TEST SUITE")
+    print("PG-MEMORY v3.0.0 - AUTOMATED TEST SUITE")
     print("=" * 70)
     
     tests = [

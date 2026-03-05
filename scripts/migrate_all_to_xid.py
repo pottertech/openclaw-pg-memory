@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-XID Full Schema Migration - pg-memory v2.7.7
+XID Full Schema Migration - pg-memory v3.0.0
 
 Migrates all UUID primary keys and foreign keys to XID (TEXT)
 for improved storage, performance, and time-sorting.
@@ -24,7 +24,7 @@ db_name = os.getenv('PG_MEMORY_DB', 'openclaw_memory')
 db_user = os.getenv('PG_MEMORY_DB_USER', os.getenv('USER', 'openclaw'))
 
 print("=" * 80)
-print("PG-MEMORY v2.7.7 - FULL XID SCHEMA MIGRATION")
+print("PG-MEMORY v3.0.0 - FULL XID SCHEMA MIGRATION")
 print("=" * 80)
 print(f"\nDatabase: {db_name}")
 print(f"Started: {datetime.now().isoformat()}")
