@@ -384,3 +384,95 @@ Error: Migration failed
 ---
 
 *pg-memory v3.0.0 - Production Ready*
+
+---
+
+## Observation Resolution Lifecycle (v3.0.0)
+
+### `resolve` — Mark Observation as Resolved
+
+Mark an observation as resolved with a timestamp. Resolved observations are kept for 6 months before automatic cleanup.
+
+**Usage:**
+```bash
+python3 scripts/pg_memory.py resolve <observation-id> [--date ISO_DATE]
+```
+
+**Examples:**
+```bash
+# Mark as resolved now
+python3 scripts/pg_memory.py resolve 01jvtxk8h5m2n3p4q5r6s7t8
+
+# Mark as resolved on specific date
+python3 scripts/pg_memory.py resolve 01jvtxk8h5m2n3p4q5r6s7t8 --date 2026-03-05T10:30:00
+```
+
+**Output:**
+```
+✅ Observation 01jvtxk8h5m2n3p4q5r6s7t8 marked as resolved
+   Resolved at: 2026-03-05T10:30:00
+```
+
+---
+
+### `cleanup` — Delete Old Resolved Observations
+
+Delete resolved observations older than specified days (default: 180 days = 6 months).
+
+**Usage:**
+```bash
+python3 scripts/pg_memory.py cleanup [--days DAYS] [--dry-run]
+```
+
+**Options:**
+- `--days N` — Delete observations resolved more than N days ago (default: 180)
+- `--dry-run` — Show what would be deleted without actually deleting
+
+**Examples:**
+```bash
+# Delete resolved observations older than 6 months
+python3 scripts/pg_memory.py cleanup
+
+# Preview what would be deleted
+python3 scripts/pg_memory.py cleanup --dry-run
+
+# Delete resolved observations older than 30 days
+python3 scripts/pg_memory.py cleanup --days 30
+```
+
+**Output:**
+```
+📊 Found 42 resolved observations older than 180 days
+   Cutoff date: 2025-09-07T03:00:00
+✅ Deleted 42 resolved observations
+```
+
+---
+
+### Automatic Cleanup
+
+A cron job runs daily at 3:00 AM to clean up resolved observations older than 6 months:
+
+```cron
+0 3 * * * ~/.openclaw/workspace/repos/openclaw-pg-memory/scripts/cleanup-resolved-obs.sh
+```
+
+**Log file:** `~/.openclaw/workspace/logs/pg-memory-cleanup.log`
+
+**Manual run:**
+```bash
+~/.openclaw/workspace/repos/openclaw-pg-memory/scripts/cleanup-resolved-obs.sh
+```
+
+---
+
+### Lifecycle Policy
+
+| Status | resolved_at | Deletion Policy |
+|--------|-------------|-----------------|
+| **UNRESOLVED** | NULL | ❌ NEVER DELETE |
+| **RESOLVED** | < 180 days | ❌ KEEP |
+| **RESOLVED** | > 180 days | ✅ DELETE |
+
+**See also:** [Observation Lifecycle Policy](../MEMORY.md#postgresql-observations--lifecycle-policy)
+

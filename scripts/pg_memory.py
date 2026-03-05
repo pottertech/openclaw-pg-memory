@@ -1,7 +1,8 @@
 """
 PostgreSQL Memory System v3.0.0 — XID Session IDs + Multi-Instance Support
 Features: observations, summaries, chains, templates, conflict detection, reminders, 
-bulk import, multi-instance tracking, auto-generated instance IDs, XID session IDs
+bulk import, multi-instance tracking, auto-generated instance IDs, XID session IDs,
+observation resolution lifecycle
 """
 import os
 import re
@@ -25,6 +26,112 @@ from collections import deque
 import psycopg2
 from psycopg2 import pool
 from psycopg2.extras import RealDictCursor, Json
+
+# ============================================================================
+# OBSERVATION RESOLUTION FUNCTIONS (v3.0.0)
+# ============================================================================
+
+def resolve_observation(obs_id: str, resolved_at: Optional[datetime] = None) -> bool:
+    """Mark an observation as resolved with timestamp.
+    
+    Args:
+        obs_id: Observation ID to resolve
+        resolved_at: Timestamp (defaults to now)
+    
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    if resolved_at is None:
+        resolved_at = datetime.now()
+    
+    try:
+        config = MemoryConfig()
+        mem = PostgresMemory(config)
+        conn = mem.get_connection()
+        cur = conn.cursor()
+        
+        cur.execute("""
+            UPDATE observations 
+            SET status = 'resolved', 
+                resolved_at = %s,
+                updated_at = NOW()
+            WHERE id = %s AND status != 'resolved'
+        """, (resolved_at, obs_id))
+        
+        rows_affected = cur.rowcount
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        if rows_affected > 0:
+            print(f"✅ Observation {obs_id} marked as resolved")
+            print(f"   Resolved at: {resolved_at.isoformat()}")
+            return True
+        else:
+            print(f"⚠️  Observation {obs_id} not found or already resolved")
+            return False
+            
+    except Exception as e:
+        print(f"❌ Error resolving observation: {e}")
+        return False
+
+def cleanup_resolved_observations(days: int = 180, dry_run: bool = False) -> int:
+    """Delete resolved observations older than specified days.
+    
+    Args:
+        days: Days since resolution (default: 180 = 6 months)
+        dry_run: If True, only show what would be deleted
+    
+    Returns:
+        int: Number of observations deleted (or would be deleted in dry_run)
+    """
+    try:
+        config = MemoryConfig()
+        mem = PostgresMemory(config)
+        conn = mem.get_connection()
+        cur = conn.cursor()
+        
+        cutoff_date = datetime.now() - timedelta(days=days)
+        
+        # Count first
+        cur.execute("""
+            SELECT COUNT(*) FROM observations 
+            WHERE status = 'resolved' AND resolved_at < %s
+        """, (cutoff_date,))
+        count = cur.fetchone()[0]
+        
+        if count == 0:
+            print(f"✅ No resolved observations older than {days} days")
+            cur.close()
+            conn.close()
+            return 0
+        
+        print(f"📊 Found {count} resolved observations older than {days} days")
+        print(f"   Cutoff date: {cutoff_date.isoformat()}")
+        
+        if dry_run:
+            print(f"🔍 DRY RUN - would delete {count} observations")
+            cur.close()
+            conn.close()
+            return count
+        
+        # Delete
+        cur.execute("""
+            DELETE FROM observations 
+            WHERE status = 'resolved' AND resolved_at < %s
+        """, (cutoff_date,))
+        
+        deleted = cur.rowcount
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        print(f"✅ Deleted {deleted} resolved observations")
+        return deleted
+        
+    except Exception as e:
+        print(f"❌ Error cleaning up resolved observations: {e}")
+        return 0
 
 # Retry decorator for database operations
 def retry_db_operation(max_attempts=3, delay=1.0, backoff=2.0):
@@ -3832,33 +3939,67 @@ def import_json(input_file: str, skip_duplicates: bool = True) -> int:
 # ============================================================================
 
 if __name__ == "__main__":
-    print("🧠 PostgreSQL Memory System v2.0")
-    print("=" * 50)
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="🧠 PostgreSQL Memory System v3.0.0")
+    subparsers = parser.add_subparsers(dest="command", help="Available commands")
+    
+    # Resolve command
+    resolve_parser = subparsers.add_parser("resolve", help="Mark observation as resolved")
+    resolve_parser.add_argument("obs_id", help="Observation ID to resolve")
+    resolve_parser.add_argument("--date", help="Resolved date (ISO format, default: now)")
+    
+    # Cleanup command
+    cleanup_parser = subparsers.add_parser("cleanup", help="Delete old resolved observations")
+    cleanup_parser.add_argument("--days", type=int, default=180, help="Days threshold (default: 180)")
+    cleanup_parser.add_argument("--dry-run", action="store_true", help="Show what would be deleted")
+    
+    args = parser.parse_args()
     
     try:
         config = MemoryConfig()
         mem = PostgresMemory(config)
         
-        print("\n📊 Stats:")
-        for k, v in mem.get_stats().items():
-            print(f"  {k}: {v}")
-        
-        print("\n📝 Testing capture with validation...")
-        obs_id = mem.capture_observation(
-            content="Testing the optimized memory system",
-            tags=["test", "optimized"],
-            importance_score=0.5
-        )
-        print(f"  Captured ID: {obs_id}")
-        
-        print("\n🔍 Testing search...")
-        results = mem.search_observations("memory", limit=5)
-        print(f"  Found {len(results)} results")
-        
-        print("\n✅ All tests passed!")
+        if args.command == "resolve":
+            from datetime import datetime
+            resolved_at = None
+            if args.date:
+                resolved_at = datetime.fromisoformat(args.date)
+            resolve_observation(args.obs_id, resolved_at)
+            
+        elif args.command == "cleanup":
+            cleanup_resolved_observations(days=args.days, dry_run=args.dry_run)
+            
+        else:
+            print("🧠 PostgreSQL Memory System v3.0.0")
+            print("=" * 50)
+            
+            print("\n📊 Stats:")
+            for k, v in mem.get_stats().items():
+                print(f"  {k}: {v}")
+            
+            print("\n📝 Testing capture with validation...")
+            obs_id = mem.capture_observation(
+                content="Testing the optimized memory system",
+                tags=["test", "optimized"],
+                importance_score=0.5
+            )
+            print(f"  Captured ID: {obs_id}")
+            
+            print("\n🔍 Testing search...")
+            results = mem.search_observations("memory", limit=5)
+            print(f"  Found {len(results)} results")
+            
+            print("\n✅ All tests passed!")
+            print("\n💡 Usage:")
+            print("   python pg_memory.py resolve <obs-id>           # Mark as resolved")
+            print("   python pg_memory.py cleanup --days 180         # Delete old resolved")
+            print("   python pg_memory.py cleanup --dry-run          # Preview deletion")
         
     except Exception as e:
         print(f"\n❌ Error: {e}")
+        import traceback
+        traceback.print_exc()
     finally:
         if 'mem' in locals():
             mem.close()
