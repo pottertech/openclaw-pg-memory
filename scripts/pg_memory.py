@@ -47,7 +47,7 @@ def resolve_observation(obs_id: str, resolved_at: Optional[datetime] = None) -> 
     try:
         config = MemoryConfig()
         mem = PostgresMemory(config)
-        conn = mem.pool.getconn()
+        conn = mem._pool.getconn()
         cur = conn.cursor()
         
         cur.execute("""
@@ -61,7 +61,7 @@ def resolve_observation(obs_id: str, resolved_at: Optional[datetime] = None) -> 
         rows_affected = cur.rowcount
         conn.commit()
         cur.close()
-        mem.pool.putconn(conn)
+        mem._pool.putconn(conn)
         
         if rows_affected > 0:
             print(f"✅ Observation {obs_id} marked as resolved")
@@ -88,7 +88,7 @@ def cleanup_resolved_observations(days: int = 180, dry_run: bool = False) -> int
     try:
         config = MemoryConfig()
         mem = PostgresMemory(config)
-        conn = mem.pool.getconn()
+        conn = mem._pool.getconn()
         cur = conn.cursor()
         
         cutoff_date = datetime.now() - timedelta(days=days)
@@ -103,7 +103,7 @@ def cleanup_resolved_observations(days: int = 180, dry_run: bool = False) -> int
         if count == 0:
             print(f"✅ No resolved observations older than {days} days")
             cur.close()
-            mem.pool.putconn(conn)
+            mem._pool.putconn(conn)
             return 0
         
         print(f"📊 Found {count} resolved observations older than {days} days")
@@ -112,7 +112,7 @@ def cleanup_resolved_observations(days: int = 180, dry_run: bool = False) -> int
         if dry_run:
             print(f"🔍 DRY RUN - would delete {count} observations")
             cur.close()
-            mem.pool.putconn(conn)
+            mem._pool.putconn(conn)
             return count
         
         # Delete
@@ -124,7 +124,7 @@ def cleanup_resolved_observations(days: int = 180, dry_run: bool = False) -> int
         deleted = cur.rowcount
         conn.commit()
         cur.close()
-        mem.pool.putconn(conn)
+        mem._pool.putconn(conn)
         
         print(f"✅ Deleted {deleted} resolved observations")
         return deleted
