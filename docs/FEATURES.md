@@ -716,27 +716,27 @@ psql pg_memory -f scripts/schema_v2_7_1_embedding_fix.sql
 
 ## Feature Comparison Table
 
-| Feature | CLI | Python API | OpenClaw Tool | Notes |
-|---------|-----|------------|---------------|-------|
-| Observation Storage | ✅ | ✅ | ✅ | Core feature |
-| Semantic Search | ✅ | ✅ | ✅ | Vector similarity |
-| XID Session IDs | ✅ | ✅ | ✅ | 25% storage savings |
-| Multi-Agent Support | ✅ | ✅ | ✅ | Instance isolation |
+| Feature | OPG  | Python API | OpenClaw Tool | Notes |
+|---------|------|------------|---------------|-------|
+| Observation Storage  | ✅ | ✅ | ✅ | Core feature |
+| Semantic Search  | ✅ | ✅ | ✅ | Vector similarity |
+| XID Session IDs  | ✅ | ✅ | ✅ | 25% storage savings |
+| Multi-Agent Support  | ✅ | ✅ | ✅ | Instance isolation |
 | Backup & Restore | ✅ | ✅ | ❌ | Compression support |
-| JSON Export/Import | ✅ | ✅ | ❌ | Migration support |
-| Duplicate Detection | ✅ | ✅ | ❌ | Configurable threshold |
-| Tag Autocomplete | ✅ | ✅ | ❌ | Content-based |
-| Related Observations | ✅ | ✅ | ❌ | Bidirectional links |
-| Observation Chains | ✅ | ✅ | ❌ | Project tracking |
-| Templates | ✅ | ✅ | ❌ | Built-in + custom |
-| Summaries | ✅ | ✅ | ❌ | Auto-generated |
-| Conflict Detection | ✅ | ✅ | ❌ | Semantic analysis |
-| Natural Language Queries | ✅ | ✅ | ❌ | Requires Ollama |
-| Status Management | ✅ | ✅ | ❌ | Workflow tracking |
-| Follow-up Reminders | ✅ | ✅ | ❌ | Schedule tracking |
-| Bulk Markdown Import | ✅ | ✅ | ❌ | Recursive support |
+| JSON Export/Import  | ✅ | ✅ | ❌ | Migration support |
+| Duplicate Detection  | ✅ | ✅ | ❌ | Configurable threshold |
+| Tag Autocomplete  | ✅ | ✅ | ❌ | Content-based |
+| Related Observations  | ✅ | ✅ | ❌ | Bidirectional links |
+| Observation Chains  | ✅ | ✅ | ❌ | Project tracking |
+| Templates  | ✅ | ✅ | ❌ | Built-in + custom |
+| Summaries  | ✅ | ✅ | ❌ | Auto-generated |
+| Conflict Detection  | ✅ | ✅ | ❌ | Semantic analysis |
+| Natural Language Queries  | ✅ | ✅ | ❌ | Requires Ollama |
+| Status Management  | ✅ | ✅ | ❌ | Workflow tracking |
+| Follow-up Reminders  | ✅ | ✅ | ❌ | Schedule tracking |
+| Bulk Markdown Import  | ✅ | ✅ | ❌ | Recursive support |
 | Performance Optimizations | ✅ | ✅ | ✅ | Automatic |
-| Migration Tools | ✅ | ✅ | ❌ | Version upgrades |
+| Migration Tools  | ✅ | ✅ | ❌ | Version upgrades |
 
 ---
 
