@@ -736,7 +736,6 @@ psql pg_memory -f scripts/schema_v2_7_1_embedding_fix.sql
 | Follow-up Reminders | ✅ | ✅ | ❌ | Schedule tracking |
 | Bulk Markdown Import | ✅ | ✅ | ❌ | Recursive support |
 | Performance Optimizations | ✅ | ✅ | ✅ | Automatic |
-| OpenClaw Integration | ❌ | ❌ | ✅ | memory_search/get |
 | Migration Tools | ✅ | ✅ | ❌ | Version upgrades |
 
 ---
