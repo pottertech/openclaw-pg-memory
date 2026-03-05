@@ -1,6 +1,6 @@
 # pg-memory Commands Reference
 
-**Complete list of slash commands for pg-memory v3.0.0**
+**Complete list of slash commands for pg-memory v3.1.0**
 
 ---
 
@@ -383,11 +383,11 @@ Error: Migration failed
 
 ---
 
-*pg-memory v3.0.0 - Production Ready*
+*pg-memory v3.1.0 - Production Ready*
 
 ---
 
-## Observation Resolution Lifecycle (v3.0.0)
+## Observation Resolution Lifecycle (v3.1.0)
 
 ### `resolve` — Mark Observation as Resolved
 

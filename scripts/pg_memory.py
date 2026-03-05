@@ -1,5 +1,5 @@
 """
-PostgreSQL Memory System v3.0.0 — XID Session IDs + Multi-Instance Support
+PostgreSQL Memory System v3.1.0 — XID Session IDs + Multi-Instance Support
 Features: observations, summaries, chains, templates, conflict detection, reminders, 
 bulk import, multi-instance tracking, auto-generated instance IDs, XID session IDs,
 observation resolution lifecycle
@@ -3646,7 +3646,7 @@ def recent(limit: int = 20, hours: int = 24) -> List[Dict]:
 
 
 # ============================================================================
-# BACKUP/RESTORE FUNCTIONS (v3.0.0)
+# BACKUP/RESTORE FUNCTIONS (v3.1.0)
 # ============================================================================
 
 def backup(output_dir: Optional[str] = None, compress: bool = True) -> str:
@@ -3941,7 +3941,7 @@ def import_json(input_file: str, skip_duplicates: bool = True) -> int:
 if __name__ == "__main__":
     import argparse
     
-    parser = argparse.ArgumentParser(description="🧠 PostgreSQL Memory System v3.0.0")
+    parser = argparse.ArgumentParser(description="🧠 PostgreSQL Memory System v3.1.0")
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
     
     # Resolve command
@@ -3971,7 +3971,7 @@ if __name__ == "__main__":
             cleanup_resolved_observations(days=args.days, dry_run=args.dry_run)
             
         else:
-            print("🧠 PostgreSQL Memory System v3.0.0")
+            print("🧠 PostgreSQL Memory System v3.1.0")
             print("=" * 50)
             
             print("\n📊 Stats:")

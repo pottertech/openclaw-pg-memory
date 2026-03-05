@@ -1,6 +1,6 @@
 # pg-memory Features Reference
 
-**Version:** 3.0.0  
+**Version:** 3.1.0  
 **Last Updated:** 2026-03-04  
 **Repository:** https://github.com/skipppotter/pg-memory
 
@@ -76,8 +76,8 @@ for result in results:
 pg-memory-cli search "email security preferences" --limit 5 --min-score 0.7
 ```
 
-**Performance Stats (v3.0.0):**
-- Index size: 1520 kB (50% reduction from v3.0.0)
+**Performance Stats (v3.1.0):**
+- Index size: 1520 kB (50% reduction from v3.1.0)
 - Search time: ~10-50ms for 1000+ observations
 - Cache hit rate: Improved with time-sorted XID indexes
 
@@ -636,7 +636,7 @@ import_markdown(
 - **Rate Limiting:** Protect against abuse
 - **VACUUM Scripts:** Automated maintenance
 
-**Performance Stats (v3.0.0):**
+**Performance Stats (v3.1.0):**
 ```
 Storage:        50% reduction total (3056 kB → 1520 kB)
 Write Speed:    20-30% faster INSERT/UPDATE
@@ -697,12 +697,12 @@ for result in results:
 
 **Migration Scripts:**
 
-**UUID to XID (v3.0.0+):**
+**UUID to XID (v3.1.0+):**
 ```bash
 python scripts/migrate_all_to_xid.py
 ```
 
-**Embedding Regeneration (v3.0.0):**
+**Embedding Regeneration (v3.1.0):**
 ```bash
 python scripts/regenerate_embeddings.py --model bge-m3:latest
 ```
@@ -752,7 +752,7 @@ psql pg_memory -f scripts/schema_v2_7_1_embedding_fix.sql
 
 ---
 
-## Performance Benchmarks (v3.0.0)
+## Performance Benchmarks (v3.1.0)
 
 **Test Environment:**
 - PostgreSQL 16.12

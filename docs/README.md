@@ -1,4 +1,4 @@
-# pg-memory v3.0.0 - Complete Documentation
+# pg-memory v3.1.0 - Complete Documentation
 
 **Production-Ready Structured Memory for OpenClaw**
 
@@ -367,4 +367,4 @@ openclaw gateway restart
 
 ---
 
-*pg-memory v3.0.0 - Production Ready*
+*pg-memory v3.1.0 - Production Ready*

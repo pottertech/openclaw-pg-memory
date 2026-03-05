@@ -1,6 +1,6 @@
 # Observations Reference Guide
 
-**Complete list of tracked observation types and statuses in pg-memory v3.0.0**
+**Complete list of tracked observation types and statuses in pg-memory v3.1.0**
 
 ---
 
@@ -322,4 +322,4 @@ Use `related_observation_ids` to connect:
 
 ---
 
-**pg-memory v3.0.0 - Complete Observation Tracking**
+**pg-memory v3.1.0 - Complete Observation Tracking**

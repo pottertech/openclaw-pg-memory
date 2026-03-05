@@ -1,4 +1,4 @@
-# pg-memory + OpenClaw Integration Guide v3.0.0
+# pg-memory + OpenClaw Integration Guide v3.1.0
 
 **Production-Ready Memory Integration**
 
@@ -687,4 +687,4 @@ PG_MEMORY_MAX_OVERFLOW=20
 
 ---
 
-*pg-memory v3.0.0 - Production Ready*
+*pg-memory v3.1.0 - Production Ready*
