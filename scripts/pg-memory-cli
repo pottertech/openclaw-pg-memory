@@ -1,0 +1,982 @@
+#!/usr/bin/env python3
+"""
+pg-memory CLI - Command line interface for PostgreSQL memory system
+Version 2.0 with batch operations and enhanced features
+"""
+import sys
+import os
+import json
+import argparse
+from datetime import datetime
+from pathlib import Path
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent))
+
+try:
+    from pg_memory import (
+        PostgresMemory, MemoryConfig,
+        capture, search, stats, prune, export, recent,
+        capture_batch, ask
+    )
+except ImportError as e:
+    print(f"Error importing pg_memory: {e}")
+    print("Make sure psycopg2-binary is installed: pip3 install psycopg2-binary")
+    sys.exit(1)
+
+# ANSI colors (only if terminal supports it)
+import sys
+if sys.stdout.isatty():
+    GREEN = "\033[92m"
+    YELLOW = "\033[93m"
+    RED = "\033[91m"
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
+else:
+    GREEN = YELLOW = RED = RESET = BOLD = ""
+
+def print_success(msg): print(f"{GREEN}✓{RESET} {msg}")
+def print_warning(msg): print(f"{YELLOW}⚠{RESET} {msg}")
+def print_error(msg): print(f"{RED}✗{RESET} {msg}")
+
+def cmd_capture(args):
+    """Capture a single observation."""
+    try:
+        tags = args.tags.split(",") if args.tags else None
+        exchange_ids = args.exchange_ids.split(",") if args.exchange_ids else None
+        files = args.files.split(",") if args.files else None
+        urls = args.urls.split(",") if args.urls else None
+        
+        importance = 0.9 if args.important else args.importance
+        
+        obs_id = capture(
+            content=args.content,
+            session_id=args.session,
+            source=args.source,
+            content_type=args.type,
+            tags=tags,
+            importance_score=importance,
+            derived_from_exchange_ids=exchange_ids,
+            related_files=files,
+            related_urls=urls
+        )
+        
+        if args.important:
+            print_success(f"Captured important observation (ID: {obs_id})")
+        else:
+            print_success(f"Captured observation (ID: {obs_id})")
+        
+        if exchange_ids:
+            print(f"  Linked to {len(exchange_ids)} chat message(s)")
+        if files:
+            print(f"  Related files: {len(files)}")
+        if urls:
+            print(f"  Related URLs: {len(urls)}")
+
+    except Exception as e:
+        print_error(f"Failed to capture: {e}")
+        sys.exit(1)
+
+def cmd_batch(args):
+    """Capture multiple observations from JSON file or stdin."""
+    try:
+        if args.file:
+            with open(args.file, 'r') as f:
+                observations = json.load(f)
+        else:
+            # Read from stdin
+            observations = json.load(sys.stdin)
+
+        if not isinstance(observations, list):
+            print_error("Input must be a JSON array of observations")
+            sys.exit(1)
+
+        if len(observations) > 100:
+            print_warning(f"Batch limited to 100, you provided {len(observations)}")
+            observations = observations[:100]
+
+        ids = capture_batch(observations)
+        print_success(f"Batch captured {len(ids)} observations")
+
+        if args.verbose:
+            for i, obs_id in enumerate(ids):
+                print(f"  [{i+1}] ID: {obs_id}")
+
+    except json.JSONDecodeError as e:
+        print_error(f"Invalid JSON: {e}")
+        sys.exit(1)
+    except Exception as e:
+        print_error(f"Failed batch capture: {e}")
+        sys.exit(1)
+
+def cmd_search(args):
+    """Search observations with filters."""
+    try:
+        tags = args.tags.split(",") if args.tags else None
+
+        mem = PostgresMemory()
+        results = mem.search_observations(
+            query=args.query,
+            limit=args.limit,
+            session_id=None,
+            tags=tags,
+            days=args.days,
+            min_importance=args.min_importance,
+            use_cache=not args.no_cache
+        )
+
+        if not results:
+            print(f"No results found for: {args.query}")
+            mem.close()
+            return
+
+        print(f"\n{BOLD}Found {len(results)} results:{RESET}\n")
+
+        for i, obs in enumerate(results, 1):
+            # Fix: Handle missing columns gracefully
+            ts = obs.get('timestamp', obs.get('created_at'))
+            ts_str = 'Unknown'
+            if ts:
+                if hasattr(ts, 'strftime'):
+                    ts_str = ts.strftime('%Y-%m-%d %H:%M')
+                else:
+                    ts_str = str(ts)[:16]  # Truncate to avoid long timestamps
+            
+            source = obs.get('source', 'unknown')
+            importance = obs.get('importance_score', 0.5)
+            
+            print(f"{BOLD}[{i}]{RESET} {ts_str}")
+            print(f"    Source: {source} | Importance: {importance:.2f}")
+            
+            # Safely handle tags
+            obs_tags = obs.get('tags', [])
+            if obs_tags:
+                if isinstance(obs_tags, list):
+                    print(f"    Tags: {', '.join(str(t) for t in obs_tags)}")
+                else:
+                    print(f"    Tags: {obs_tags}")
+            
+            content = obs.get('content', '')[:150]
+            if len(obs.get('content', '')) > 150:
+                content += "..."
+            print(f"    {content}\n")
+
+        mem.close()
+
+    except Exception as e:
+        print_error(f"Search failed: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+
+def cmd_recent(args):
+    """Show recent observations."""
+    try:
+        mem = PostgresMemory()
+        results = mem.get_recent_observations(
+            limit=args.limit,
+            hours=args.hours
+        )
+
+        if not results:
+            print(f"No observations in the last {args.hours} hours")
+            return
+
+        print(f"\n{BOLD}Recent observations:{RESET}\n")
+
+        for i, obs in enumerate(results, 1):
+            time_ago = ""
+            if isinstance(obs['timestamp'], datetime):
+                diff = datetime.now() - obs['timestamp']
+                if diff.days > 0:
+                    time_ago = f" ({diff.days}d ago)"
+                elif diff.seconds > 3600:
+                    time_ago = f" ({diff.seconds // 3600}h ago)"
+                else:
+                    time_ago = f" ({diff.seconds // 60}m ago)"
+
+            print(f"{BOLD}[{i}]{RESET} {obs['timestamp']}{time_ago}")
+            print(f"    Source: {obs['source']} | Score: {obs['importance_score']}")
+            print(f"    {obs['content'][:100]}...\n")
+
+        mem.close()
+
+    except Exception as e:
+        print_error(f"Failed to get recent: {e}")
+        sys.exit(1)
+
+def cmd_duplicate(args):
+    """Check for similar observations."""
+    try:
+        mem = PostgresMemory()
+        duplicates = mem.find_similar(
+            content=args.content,
+            min_similarity=args.threshold,
+            limit=args.limit
+        )
+        
+        if duplicates:
+            print(f"\n{BOLD}🔍 Found {len(duplicates)} similar observations:{RESET}\n")
+            for dup in duplicates:
+                sim_pct = int(dup['similarity'] * 100)
+                print(f"  [{sim_pct}% similar] ID: {dup['id']}")
+                print(f"    Source: {dup['source']}")
+                print(f"    Content: {dup['content'][:150]}...")
+                print(f"    Created: {dup['created_at']}\n")
+        else:
+            print_success("No similar observations found")
+            
+        mem.close()
+    except Exception as e:
+        print_error(f"Failed to check duplicates: {e}")
+        sys.exit(1)
+
+def cmd_tags(args):
+    """Suggest tags."""
+    try:
+        mem = PostgresMemory()
+        
+        if args.content:
+            suggestions = mem.suggest_tags(args.content, limit=args.limit)
+            print(f"\n{BOLD}📝 Suggested tags for content:{RESET}")
+        elif args.partial:
+            suggestions = mem.suggest_tags_from_existing(args.partial, limit=args.limit)
+            print(f"\n{BOLD}🏷️  Existing tags matching '{args.partial}':{RESET}")
+        else:
+            suggestions = mem.suggest_tags_from_existing("", limit=args.limit)
+            print(f"\n{BOLD}🏷️  Most popular tags:{RESET}")
+        
+        if suggestions:
+            for i, tag in enumerate(suggestions, 1):
+                print(f"  {i}. {tag}")
+        else:
+            print("  No suggestions found")
+            
+        mem.close()
+    except Exception as e:
+        print_error(f"Failed to get tag suggestions: {e}")
+        sys.exit(1)
+
+def cmd_backup(args):
+    """Create database backup."""
+    try:
+        from pg_memory import backup, list_backups
+        
+        if args.list:
+            backups = list_backups(args.output)
+            if backups:
+                print(f"\n{BOLD}📦 Available Backups:{RESET}\n")
+                for i, b in enumerate(backups[-10:], 1):  # Show last 10
+                    size_mb = b.get('size_bytes', 0) / (1024 * 1024)
+                    compressed = "📦" if b.get('compressed') else "📄"
+                    print(f"  {i}. {b['timestamp']} {compressed} ({size_mb:.1f} MB)")
+                    print(f"     File: {b['file']}")
+            else:
+                print_warning("No backups found")
+            return
+        
+        print_info("Creating database backup...")
+        backup_path = backup(
+            output_dir=args.output,
+            compress=not args.no_compress
+        )
+        size_mb = Path(backup_path).stat().st_size / (1024 * 1024)
+        print_success(f"Backup created: {backup_path}")
+        print_info(f"Size: {size_mb:.1f} MB")
+        
+    except Exception as e:
+        print_error(f"Backup failed: {e}")
+        sys.exit(1)
+
+def cmd_restore(args):
+    """Restore from backup."""
+    try:
+        from pg_memory import restore, list_backups
+        from pathlib import Path
+        
+        backup_file = args.file
+        
+        if args.latest:
+            backups = list_backups()
+            if not backups:
+                print_error("No backups found")
+                sys.exit(1)
+            backup_file = backups[-1]['file']  # Most recent
+            print_info(f"Using latest backup: {Path(backup_file).name}")
+        
+        if not backup_file:
+            print_error("Must specify --file or --latest")
+            sys.exit(1)
+        
+        if args.drop:
+            print_warning("Dropping existing database...")
+        
+        print_info(f"Restoring from: {backup_file}")
+        restore(backup_file, drop_existing=args.drop)
+        print_success("Restore completed successfully!")
+        
+    except Exception as e:
+        print_error(f"Restore failed: {e}")
+        sys.exit(1)
+
+def cmd_stats(args):
+    """Show database statistics."""
+    try:
+        s = stats()
+
+        print(f"\n{BOLD}📊 pg_memory Statistics{RESET}\n")
+        print(f"  Total observations: {s['observations']}")
+        print(f"  Total summaries: {s['summaries']}")
+        print(f"  Distinct sessions: {s['distinct_sessions']}")
+        print(f"  Average importance: {s['average_importance']}")
+        print(f"  Cache size: {s['cache_size']} entries")
+        print(f"  Rate limit remaining: {s['rate_limit_remaining']}")
+
+        if s['latest_capture']:
+            print(f"  Latest capture: {s['latest_capture']}")
+
+        print(f"  pgvector available: {'Yes' if s['pgvector_available'] else 'No'}")
+        print()
+
+    except Exception as e:
+        print_error(f"Failed to get stats: {e}")
+        sys.exit(1)
+
+def cmd_export(args):
+    """Export observations to markdown."""
+    # Validate output path
+    if not args.output:
+        print_error("Output path required")
+        sys.exit(1)
+
+    # Reject dangerous paths
+    dangerous_patterns = ['..', '~', '$', '\x00', '|', ';', '&', '`']
+    for pattern in dangerous_patterns:
+        if pattern in args.output:
+            print_error(f"Invalid characters in output path: {repr(pattern)}")
+            sys.exit(1)
+
+    try:
+        count = export(
+            path=args.output,
+            days=args.days,
+            min_importance=args.min_importance
+        )
+        print_success(f"Exported {count} observations to {args.output}")
+    except Exception as e:
+        print_error(f"Export failed: {e}")
+        sys.exit(1)
+
+def cmd_prune(args):
+    """Prune old observations."""
+    if not args.force:
+        response = input(f"Delete observations older than {args.days} days with importance < {args.min_importance}? [y/N]: ")
+        if response.lower() != 'y':
+            print("Cancelled.")
+            return
+
+    try:
+        deleted = prune(days=args.days, min_importance=args.min_importance)
+        print_success(f"Pruned {deleted} old observations")
+    except Exception as e:
+        print_error(f"Prune failed: {e}")
+        sys.exit(1)
+
+def cmd_status(args):
+    """Update observation status."""
+    try:
+        from pg_memory import update_status
+        result = update_status(args.observation_id, args.new_status, args.notes)
+        print_success(f"Updated observation status to '{args.new_status}'")
+        print(f"  ID: {result['id']}")
+        print(f"  Started: {result['started_at']}")
+        if result['resolved_at']:
+            print(f"  Resolved: {result['resolved_at']}")
+        print(f"  Preview: {result['content'][:80]}...")
+    except Exception as e:
+        print_error(f"Failed to update status: {e}")
+        sys.exit(1)
+
+def cmd_complete(args):
+    """Mark project as completed."""
+    try:
+        from pg_memory import complete_project
+        updated = complete_project(args.project_name, args.notes)
+        if updated:
+            print_success(f"Marked {len(updated)} observations as resolved for project '{args.project_name}'")
+            for obs in updated:
+                print(f"  ✓ {obs['id'][:8]}... - {obs['title'] or 'Untitled'}")
+        else:
+            print_warning(f"No active observations found for project '{args.project_name}'")
+    except Exception as e:
+        print_error(f"Failed to complete project: {e}")
+        sys.exit(1)
+
+# === NEW COMMAND HANDLERS (v2.3) ===
+
+def cmd_templates(args):
+    """List templates."""
+    try:
+        from pg_memory import get_templates
+        templates = get_templates(template_type=args.type)
+        if templates:
+            print_success(f"Found {len(templates)} templates:")
+            for t in templates:
+                print(f"  {t['template_name']} ({t['template_type']})")
+                print(f"    Usage: {t['usage_count']} times")
+        else:
+            print_warning("No templates found")
+    except Exception as e:
+        print_error(f"Failed: {e}")
+        sys.exit(1)
+
+def cmd_summarize(args):
+    """Generate summary."""
+    try:
+        from pg_memory import summarize
+        tags = args.tags.split(",") if args.tags else None
+        summary_id = summarize(tags=tags, days=args.days)
+        print_success(f"Generated summary (ID: {summary_id})")
+    except Exception as e:
+        print_error(f"Failed to summarize: {e}")
+        sys.exit(1)
+
+def cmd_search_summaries(args):
+    """Search summaries."""
+    try:
+        from pg_memory import search_summaries
+        results = search_summaries(args.query, limit=args.limit)
+        if results:
+            print_success(f"Found {len(results)} summaries:")
+            for r in results:
+                print(f"  [{r['summary_type']}] {r['title'] or 'Untitled'}")
+                print(f"    Preview: {r['content'][:100]}")
+        else:
+            print_warning("No summaries found")
+    except Exception as e:
+        print_error(f"Search failed: {e}")
+        sys.exit(1)
+
+def cmd_query(args):
+    """Natural language query."""
+    try:
+        result = ask(args.query_text, explain=args.explain)
+
+        if args.explain:
+            print(result)
+            return
+
+        # Display results
+        print(f"\n{BOLD}Query:{RESET} {args.query_text}")
+        print(f"{BOLD}Interpretation:{RESET} {result.interpretation}")
+        print(f"{BOLD}Results:{RESET} {result.result_count} (in {result.execution_time_ms:.1f}ms)\n")
+
+        if not result.results:
+            print("No matching observations found.")
+            return
+
+        for i, obs in enumerate(result.results, 1):
+            # Format timestamp
+            ts = obs.get('created_at', 'Unknown')
+            if hasattr(ts, 'strftime'):
+                ts_str = ts.strftime('%Y-%m-%d %H:%M')
+            else:
+                ts_str = str(ts)[:16] if ts else 'Unknown'
+
+            # Get content/display
+            title = obs.get('title', '') or obs.get('content', '')[:50]
+            content = obs.get('content', '') or obs.get('title', '')
+
+            print(f"{BOLD}[{i}]{RESET} {ts_str}")
+            print(f"    ID: {obs.get('id', 'N/A')[:8]}...")
+            print(f"    Type: {obs.get('obs_type', 'N/A')} | Status: {obs.get('status', 'N/A')}")
+            print(f"    Importance: {obs.get('importance_score', 0):.2f}")
+            if obs.get('tags'):
+                print(f"    Tags: {', '.join(obs['tags'])}")
+
+            # Truncate content for display
+            content_display = content[:200]
+            if len(content) > 200:
+                content_display += "..."
+            print(f"    {content_display}\n")
+
+        if args.sql:
+            print(f"{BOLD}SQL Query:{RESET}")
+            print(result.sql_query)
+            print(f"\n{BOLD}Parameters:{RESET} {result.params}")
+
+    except Exception as e:
+        print_error(f"Query failed: {e}")
+        sys.exit(1)
+
+def cmd_conflicts(args):
+    """List open conflicts."""
+    try:
+        from pg_memory import list_conflicts
+        conflicts = list_conflicts()
+        if conflicts:
+            print_warning(f"Found {len(conflicts)} open conflicts:")
+            for c in conflicts:
+                print(f"  [{c['conflict_type']}] {c['obs_1_title'][:50]} vs {c['obs_2_title'][:50]}")
+                print(f"    Score: {c['conflict_score']}")
+        else:
+            print_success("No open conflicts")
+    except Exception as e:
+        print_error(f"Failed: {e}")
+        sys.exit(1)
+
+def cmd_reminders(args):
+    """List pending reminders."""
+    try:
+        from pg_memory import pending_reminders
+        reminders = pending_reminders()
+        if reminders:
+            print_success(f"Found {len(reminders)} pending reminders:")
+            for r in reminders:
+                print(f"  [{r['reminder_type']}] {r.get('observation_title', 'Untitled')}")
+                print(f"    Due: {r['remind_at']}")
+        else:
+            print_success("No pending reminders")
+    except Exception as e:
+        print_error(f"Failed: {e}")
+        sys.exit(1)
+
+def cmd_check_stale(args):
+    """Check for stale observations."""
+    try:
+        from pg_memory import check_stale
+        count = check_stale(min_days=args.days)
+        if count:
+            print_warning(f"Created {count} stale observation reminders")
+        else:
+            print_success("No stale observations found")
+    except Exception as e:
+        print_error(f"Failed: {e}")
+        sys.exit(1)
+
+def cmd_import(args):
+    """Import markdown."""
+    try:
+        from pg_memory import import_md, import_dir
+        from pathlib import Path
+        path = Path(args.path)
+        if path.is_file():
+            count = import_md(str(path), importance=args.importance)
+            print_success(f"Imported {count} observations from {path}")
+        elif path.is_dir():
+            result = import_dir(str(path), recursive=args.recursive)
+            print_success(f"Processed {result['files_processed']} files, created {result['observations_created']} observations")
+            if result['errors']:
+                print_error(f"{len(result['errors'])} errors:")
+                for err in result['errors'][:5]:
+                    print(f"  {err['file']}: {err['error']}")
+        else:
+            print_error(f"Path not found: {args.path}")
+            sys.exit(1)
+    except Exception as e:
+        print_error(f"Import failed: {e}")
+        sys.exit(1)
+
+def cmd_chains(args):
+    """List chains."""
+    try:
+        from pg_memory import list_chains
+        chains = list_chains(status=args.status)
+        if chains:
+            print_success(f"Found {len(chains)} chains:")
+            for c in chains:
+                print(f"  {c['chain_name']} ({c['chain_type']})")
+                print(f"    Status: {c['status']}, {c['current_step']}/{c['total_steps']} ({c['percent_complete']}%)")
+        else:
+            print_warning("No chains found")
+    except Exception as e:
+        print_error(f"Failed: {e}")
+        sys.exit(1)
+
+def cmd_new_chain(args):
+    """Create chain."""
+    try:
+        from pg_memory import create_chain
+        chain_id = create_chain(args.name, chain_type=args.type, chain_description=args.description)
+        print_success(f"Created chain (ID: {chain_id})")
+    except Exception as e:
+        print_error(f"Failed: {e}")
+        sys.exit(1)
+
+def cmd_add_step(args):
+    """Add step to chain."""
+    try:
+        from pg_memory import add_step
+        step_id = add_step(args.chain_id, args.observation, args.type)
+        print_success(f"Added step (ID: {step_id})")
+    except Exception as e:
+        print_error(f"Failed: {e}")
+        sys.exit(1)
+
+def cmd_finish_chain(args):
+    """Complete chain."""
+    try:
+        from pg_memory import finish_chain
+        if finish_chain(args.chain_id):
+            print_success("Chain marked complete")
+        else:
+            print_warning("Chain not found or already complete")
+    except Exception as e:
+        print_error(f"Failed: {e}")
+        sys.exit(1)
+
+def cmd_ask(args):
+    """Natural language query using LLM."""
+    try:
+        from pg_memory import get_memory
+        mem = get_memory()
+        
+        print(f"\n{BOLD}🤖 Asking: {args.question}{RESET}\n")
+        
+        if args.preview:
+            # Just show SQL
+            sql = mem.preview_sql(args.question, model=args.model)
+            print(f"{YELLOW}Generated SQL:{RESET}")
+            print(f"  {sql}")
+            return
+        
+        # Execute query
+        results = mem.ask(args.question, model=args.model)
+        
+        if results:
+            print_success(f"Found {len(results)} results:")
+            for r in results:
+                print(f"\n  {BOLD}{r.get('title', 'Untitled')}{RESET}")
+                content_preview = r.get('content', '')[:150] + "..." if len(r.get('content', '')) > 150 else r.get('content', '')
+                print(f"  {content_preview}")
+                print(f"  {YELLOW}Importance: {r.get('importance_score', 'N/A')} | Status: {r.get('status', 'N/A')}{RESET}")
+        else:
+            print_warning("No results found")
+            
+    except Exception as e:
+        print_error(f"Query failed: {e}")
+        sys.exit(1)
+
+def cmd_get_model(args):
+    """Show current NL query model."""
+    try:
+        from pg_memory import get_memory
+        mem = get_memory()
+        model = mem.get_nl_model()
+        print(f"\n{BOLD}⚙️  NL Query Configuration{RESET}")
+        print(f"  Model: {GREEN}{model}{RESET}")
+        print(f"  Source: " + ("Environment (PG_MEMORY_NL_MODEL)" if os.getenv('PG_MEMORY_NL_MODEL') else 
+                                  ("Settings table" if mem.get_setting('nl_query_model') else "Default (mistral:latest)")))
+    except Exception as e:
+        print_error(f"Failed: {e}")
+        sys.exit(1)
+
+def cmd_set_model(args):
+    """Change NL query model."""
+    try:
+        from pg_memory import get_memory
+        mem = get_memory()
+        
+        mem.set_nl_model(args.model)
+        print_success(f"NL query model changed to: {args.model}")
+        print(f"  Test the model with: pg-memory ask 'test question'")
+        print(f"  Or preview SQL: pg-memory ask 'test question' --preview")
+    except Exception as e:
+        print_error(f"Failed to change model: {e}")
+        sys.exit(1)
+
+def cmd_config(args):
+    """Show current configuration."""
+    config = MemoryConfig()
+
+    print(f"\n{BOLD}⚙️  pg_memory Configuration{RESET}\n")
+    print(f"  Database:")
+    print(f"    Name: {config.db_name}")
+    print(f"    Host: {config.db_host}")
+    print(f"    Port: {config.db_port}")
+    print(f"    User: {config.db_user}")
+    print()
+    print(f"  Security:")
+    print(f"    Max content length: {config.max_content_length:,} bytes")
+    print(f"    Max tags: {config.max_tags}")
+    print(f"    Max tag length: {config.max_tag_length}")
+    print(f"    Rate limit: {config.rate_limit_max} per {config.rate_limit_window}s")
+    print()
+    print(f"  Performance:")
+    print(f"    Pool size: {config.pool_min}-{config.pool_max}")
+    print(f"    Query timeout: {config.query_timeout}s")
+    print(f"    Cache size: {config.cache_size}")
+    print(f"    Cache TTL: {config.cache_ttl}s")
+    print()
+
+def main():
+    parser = argparse.ArgumentParser(
+        prog="pg-memory",
+        description="PostgreSQL Memory System CLI v2.0",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  pg-memory capture "Important note" --tags project --importance 0.9
+  pg-memory capture "Bug found" --exchange-ids msg123,msg124 --files /path/to/file
+  pg-memory search "postgres" --limit 10 --min-importance 0.8
+  pg-memory recent --hours 24
+  pg-memory stats
+  pg-memory export backup.md --days 30
+  pg-memory batch < observations.json
+  pg-memory status abc123 resolved --notes "Finished video"
+  pg-memory complete "warner-bros" --notes "All tasks done"
+        """
+    )
+
+    subparsers = parser.add_subparsers(dest="command", help="Commands")
+
+    # Capture
+    capture_parser = subparsers.add_parser("capture", help="Capture an observation")
+    capture_parser.add_argument("content", help="Content to capture")
+    capture_parser.add_argument("--tags", "-t", help="Comma-separated tags")
+    capture_parser.add_argument("--source", "-s", default="cli", help="Source identifier")
+    capture_parser.add_argument("--session", help="Session ID")
+    capture_parser.add_argument("--type", default="text", help="Content type")
+    capture_parser.add_argument("--importance", "-i", type=float, default=0.5, help="Importance score (0.0-1.0)")
+    capture_parser.add_argument("--important", action="store_true", help="Mark as important (sets importance to 0.9)")
+    capture_parser.add_argument("--exchange-ids", "-e", help="Comma-separated message/exchange IDs that led to this")
+    capture_parser.add_argument("--files", "-f", help="Comma-separated file paths related to this")
+    capture_parser.add_argument("--urls", "-u", help="Comma-separated URLs related to this")
+    capture_parser.set_defaults(func=cmd_capture)
+
+    # Batch
+    batch_parser = subparsers.add_parser("batch", help="Batch capture from JSON")
+    batch_parser.add_argument("--file", "-f", help="JSON file with observations array")
+    batch_parser.add_argument("--verbose", "-v", action="store_true", help="Show IDs")
+    batch_parser.set_defaults(func=cmd_batch)
+
+    # Search
+    search_parser = subparsers.add_parser("search", help="Search observations")
+    search_parser.add_argument("query", help="Search query")
+    search_parser.add_argument("--limit", "-n", type=int, default=10, help="Max results")
+    search_parser.add_argument("--tags", help="Filter by tags (comma-separated)")
+    search_parser.add_argument("--days", "-d", type=int, help="Only within N days")
+    search_parser.add_argument("--min-importance", "-m", type=float, default=0.0, help="Minimum importance")
+    search_parser.add_argument("--no-cache", action="store_true", help="Skip cache")
+    search_parser.set_defaults(func=cmd_search)
+
+    # Recent
+    recent_parser = subparsers.add_parser("recent", help="Show recent observations")
+    recent_parser.add_argument("--hours", "-H", type=int, default=24, help="Hours to look back")
+    recent_parser.add_argument("--limit", "-n", type=int, default=20, help="Max results")
+    recent_parser.set_defaults(func=cmd_recent)
+
+    # Duplicate check (new in v2.6.0)
+    dup_parser = subparsers.add_parser("duplicate", help="Check for similar observations")
+    dup_parser.add_argument("content", help="Content to check for duplicates")
+    dup_parser.add_argument("--threshold", "-t", type=float, default=0.85, help="Similarity threshold (0.0-1.0)")
+    dup_parser.add_argument("--limit", "-n", type=int, default=10, help="Max results")
+    dup_parser.set_defaults(func=cmd_duplicate)
+
+    # Tag suggestions (new in v2.6.0)
+    tags_parser = subparsers.add_parser("tags", help="Suggest tags")
+    tags_parser.add_argument("--content", "-c", help="Content to analyze for suggestions")
+    tags_parser.add_argument("--partial", "-p", default="", help="Partial tag for autocomplete")
+    tags_parser.add_argument("--limit", "-n", type=int, default=10, help="Max suggestions")
+    tags_parser.set_defaults(func=cmd_tags)
+
+    # Backup (new in v2.6.0)
+    backup_parser = subparsers.add_parser("backup", help="Create database backup")
+    backup_parser.add_argument("--output", "-o", help="Output directory (default: ~/.pg-memory/backups/)")
+    backup_parser.add_argument("--no-compress", action="store_true", help="Don't compress backup")
+    backup_parser.add_argument("--list", "-l", action="store_true", help="List available backups")
+    backup_parser.set_defaults(func=cmd_backup)
+
+    # Restore (new in v2.6.0)
+    restore_parser = subparsers.add_parser("restore", help="Restore from backup")
+    restore_parser.add_argument("--file", "-f", help="Specific backup file to restore")
+    restore_parser.add_argument("--latest", "-l", action="store_true", help="Restore most recent backup")
+    restore_parser.add_argument("--drop", "-d", action="store_true", help="Drop existing database first (WARNING: destroys data)")
+    restore_parser.set_defaults(func=cmd_restore)
+
+    # Stats
+    stats_parser = subparsers.add_parser("stats", help="Show database statistics")
+    stats_parser.set_defaults(func=cmd_stats)
+
+    # Export
+    export_parser = subparsers.add_parser("export", help="Export to markdown")
+    export_parser.add_argument("output", help="Output file path")
+    export_parser.add_argument("--days", "-d", type=int, help="Only within N days")
+    export_parser.add_argument("--min-importance", "-m", type=float, default=0.0, help="Minimum importance")
+    export_parser.set_defaults(func=cmd_export)
+
+    # Prune
+    prune_parser = subparsers.add_parser("prune", help="Delete old observations")
+    prune_parser.add_argument("--days", "-d", type=int, required=True, help="Delete older than N days")
+    prune_parser.add_argument("--min-importance", "-m", type=float, default=0.0, help="Keep if importance >= this")
+    prune_parser.add_argument("--force", "-f", action="store_true", help="Skip confirmation")
+    prune_parser.set_defaults(func=cmd_prune)
+
+    # Update status
+    status_parser = subparsers.add_parser("status", help="Update observation status")
+    status_parser.add_argument("observation_id", help="Observation UUID")
+    status_parser.add_argument("new_status", choices=['active', 'ongoing', 'resolved', 'superseded'],
+                               help="New status value")
+    status_parser.add_argument("--notes", "-n", help="Resolution notes")
+    status_parser.set_defaults(func=cmd_status)
+
+    # Complete project
+    complete_parser = subparsers.add_parser("complete", help="Mark project as completed")
+    complete_parser.add_argument("project_name", help="Project name/tag")
+    complete_parser.add_argument("--notes", "-n", help="Completion notes")
+    complete_parser.set_defaults(func=cmd_complete)
+
+    # === NEW COMMANDS (v2.3) ===
+
+    # Templates
+    templates_parser = subparsers.add_parser("templates", help="List available templates")
+    templates_parser.add_argument("--type", help="Filter by template type")
+    templates_parser.set_defaults(func=cmd_templates)
+
+    # Summarize
+    summarize_parser = subparsers.add_parser("summarize", help="Generate summary of observations")
+    summarize_parser.add_argument("--days", "-d", type=int, default=7, help="Days back to summarize")
+    summarize_parser.add_argument("--tags", "-t", help="Comma-separated tags to filter")
+    summarize_parser.set_defaults(func=cmd_summarize)
+
+    # Search summaries
+    searchsum_parser = subparsers.add_parser("search-summaries", help="Search summaries")
+    searchsum_parser.add_argument("query", help="Search query")
+    searchsum_parser.add_argument("--limit", "-l", type=int, default=10)
+    searchsum_parser.set_defaults(func=cmd_search_summaries)
+
+    # Natural Language Query (Pattern-based)
+    query_parser = subparsers.add_parser("query", help="Natural language query using patterns (e.g., 'show me high-importance unresolved projects from last week')")
+    query_parser.add_argument("query_text", help="Your question in natural language")
+    query_parser.add_argument("--explain", "-e", action="store_true", help="Show SQL translation without executing")
+    query_parser.add_argument("--sql", "-s", action="store_true", help="Show the generated SQL query")
+    query_parser.set_defaults(func=cmd_query)
+
+    # Advanced Natural Language Query (LLM-powered)
+    ask_parser = subparsers.add_parser("ask", help="Ask questions using LLM SQL generation")
+    ask_parser.add_argument("question", help="Your question in natural language")
+    ask_parser.add_argument("--model", "-m", help="Override the default model (e.g., ollama/qwen2.5-coder)")
+    ask_parser.add_argument("--preview", "-p", action="store_true", help="Show generated SQL without executing")
+    ask_parser.set_defaults(func=cmd_ask)
+
+    # NL Query Model Management
+    getmodel_parser = subparsers.add_parser("get-model", help="Show current NL query model")
+    getmodel_parser.set_defaults(func=cmd_get_model)
+
+    setmodel_parser = subparsers.add_parser("set-model", help="Change NL query model")
+    setmodel_parser.add_argument("model", help="Model name (e.g., ollama/qwen2.5-coder, ollama/mistral:latest)")
+    setmodel_parser.set_defaults(func=cmd_set_model)
+
+    # Conflicts
+    conflicts_parser = subparsers.add_parser("conflicts", help="List open conflicts")
+    conflicts_parser.set_defaults(func=cmd_conflicts)
+
+    # Reminders
+    reminders_parser = subparsers.add_parser("reminders", help="List pending reminders")
+    reminders_parser.set_defaults(func=cmd_reminders)
+
+    checkstale_parser = subparsers.add_parser("check-stale", help="Check for stale observations")
+    checkstale_parser.add_argument("--days", "-d", type=int, default=3, help="Min days stale")
+    checkstale_parser.set_defaults(func=cmd_check_stale)
+
+    # Import
+    import_parser = subparsers.add_parser("import", help="Import markdown files")
+    import_parser.add_argument("path", help="File or directory to import")
+    import_parser.add_argument("--recursive", "-r", action="store_true", help="Recursive directory import")
+    import_parser.add_argument("--importance", "-i", type=float, default=0.5, help="Default importance")
+    import_parser.set_defaults(func=cmd_import)
+
+    # Chains
+    chains_parser = subparsers.add_parser("chains", help="List observation chains")
+    chains_parser.add_argument("--status", choices=['active', 'complete', 'abandoned'])
+    chains_parser.set_defaults(func=cmd_chains)
+
+    newchain_parser = subparsers.add_parser("new-chain", help="Create new chain")
+    newchain_parser.add_argument("name", help="Chain name")
+    newchain_parser.add_argument("--type", "-t", default="project", help="Chain type")
+    newchain_parser.add_argument("--description", "-d", help="Description")
+    newchain_parser.set_defaults(func=cmd_new_chain)
+
+    addstep_parser = subparsers.add_parser("add-step", help="Add step to chain")
+    addstep_parser.add_argument("chain_id", help="Chain UUID")
+    addstep_parser.add_argument("--observation", "-o", help="Observation UUID")
+    addstep_parser.add_argument("--type", "-t", default="milestone", choices=['decision', 'action', 'milestone', 'blocker', 'resolution'])
+    addstep_parser.set_defaults(func=cmd_add_step)
+
+    completechain_parser = subparsers.add_parser("finish-chain", help="Mark chain as complete")
+    completechain_parser.add_argument("chain_id", help="Chain UUID")
+    completechain_parser.set_defaults(func=cmd_finish_chain)
+
+    # Config
+    config_parser = subparsers.add_parser("config", help="Show configuration")
+    config_parser.set_defaults(func=cmd_config)
+
+    args = parser.parse_args()
+
+    if not args.command:
+        parser.print_help()
+        sys.exit(0)
+
+    args.func(args)
+
+if __name__ == "__main__":
+    main()
+
+elif command == 'status':
+    # Health check
+    os.environ['PG_MEMORY_DEBUG'] = '0'
+    mem = PostgresMemory()
+    print(f"✅ pg-memory v2.7.7")
+    print(f"   Database: {os.getenv('PG_MEMORY_DB', 'openclaw_memory')}")
+    print(f"   Instance: {mem.instance_id[:8]}...")
+    print(f"   Agent: {mem.agent_label}")
+    mem.close()
+
+elif command == 'stats':
+    # Database statistics
+    os.environ['PG_MEMORY_DEBUG'] = '0'
+    mem = PostgresMemory()
+    with mem._get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT 'sessions' as table_name, COUNT(*) as rows FROM sessions UNION ALL SELECT 'observations', COUNT(*) FROM observations UNION ALL SELECT 'raw_exchanges', COUNT(*) FROM raw_exchanges UNION ALL SELECT 'context_checkpoints', COUNT(*) FROM context_checkpoints")
+            rows = cur.fetchall()
+            print("📊 Database Statistics:")
+            for table, count in rows:
+                print(f"   {table}: {count}")
+    mem.close()
+
+elif command == 'backup':
+    # Manual backup
+    import subprocess
+    backup_file = f"pg-memory-backup-{datetime.now().strftime('%Y%m%d-%H%M')}.sql.gz"
+    print(f"🔄 Creating backup: {backup_file}")
+    subprocess.run(f"pg_dump -U {os.getenv('PG_MEMORY_USER', 'postgres')} {os.getenv('PG_MEMORY_DB', 'openclaw_memory')} | gzip > {backup_file}", shell=True, check=True)
+    print(f"✅ Backup created: {backup_file}")
+
+elif command == 'query':
+    # Natural language query
+    if len(sys.argv) < 3:
+        print("Usage: pg-memory query \"what did I work on yesterday?\"")
+        sys.exit(1)
+    query = ' '.join(sys.argv[2:])
+    os.environ['PG_MEMORY_DEBUG'] = '0'
+    mem = PostgresMemory()
+    results = mem.natural_query(query)
+    print(f"📝 Query: {query}")
+    print(f"✅ Found {len(results)} result(s):")
+    for i, result in enumerate(results[:5], 1):
+        print(f"   {i}. {result.get('content', result.get('title', 'N/A'))[:100]}...")
+    mem.close()
+
+elif command == 'migrate-xid':
+    # Run UUID to XID migration
+    print("🔄 Running UUID to XID migration...")
+    import subprocess
+    subprocess.run([sys.executable, str(script_dir / 'migrate_all_to_xid.py')], check=True)
+    subprocess.run([sys.executable, str(script_dir / 'migrate_final_views.py')], check=True)
+    print("✅ Migration complete!")
+
+else:
+    print(f"Unknown command: {command}")
+    print("Commands: status, stats, backup, query, migrate-xid")
+    sys.exit(1)
