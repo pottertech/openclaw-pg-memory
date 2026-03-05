@@ -65,7 +65,7 @@ That's it! Your OpenClaw instance now has persistent, structured memory with vec
 ```
 
 This script will:
-1. Install PostgreSQL 16 with pgvector
+1. Install PostgreSQL 18 with pgvector
 2. Install Ollama and pull BGE-M3 model
 3. Create database and user
 4. Initialize schema with all tables
@@ -261,7 +261,7 @@ openclaw gateway restart
 ```bash
 # Check if PostgreSQL is running
 brew services list | grep postgres
-brew services start postgresql@16
+brew services start postgresql@18
 ```
 
 **Problem:** `Ollama not found`
