@@ -61,17 +61,17 @@ fi
 # Step 2: Install PostgreSQL
 #-------------------------------------------------------------------------------
 echo ""
-log_step "Step 2/8: Installing PostgreSQL 16..."
+log_step "Step 2/8: Installing PostgreSQL 18..."
 
 if ! command -v psql &> /dev/null; then
-    log_info "Installing PostgreSQL 16..."
-    brew install postgresql@16
+    log_info "Installing PostgreSQL 18..."
+    brew install postgresql@18
 else
     log_info "PostgreSQL already installed: $(psql --version)"
 fi
 
 log_info "Starting PostgreSQL service..."
-brew services start postgresql@16
+brew services start postgresql@18
 sleep 3
 
 #-------------------------------------------------------------------------------

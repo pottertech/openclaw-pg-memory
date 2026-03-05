@@ -48,7 +48,7 @@ That's it! Your OpenClaw instance now has persistent, structured memory with vec
 
 | Component | Version | Purpose |
 |-----------|---------|---------|
-| **PostgreSQL** | 16+ | Database backend |
+| **PostgreSQL** | 18+ | Database backend |
 | **pgvector** | Latest | Vector embeddings |
 | **Ollama** | Latest | Local AI (BGE-M3 embeddings) |
 | **Python** | 3.10+ | Runtime |

@@ -35,7 +35,7 @@ See [`MANUAL-INSTALL.md`](MANUAL-INSTALL.md) for step-by-step manual installatio
 |-----------|---------|---------|
 | **macOS** | 12+ | Built-in |
 | **Homebrew** | Latest | [brew.sh](https://brew.sh) |
-| **PostgreSQL** | 16+ | `brew install postgresql@16` |
+| **PostgreSQL** | 18+ | `brew install postgresql@18` |
 | **Python** | 3.10+ | Built-in |
 | **Node.js** | 18+ | `brew install node` |
 | **Ollama** | Latest | `brew install ollama` |
@@ -254,7 +254,7 @@ Get database statistics.
 brew services list | grep postgres
 
 # Restart PostgreSQL
-brew services restart postgresql@16
+brew services restart postgresql@18
 ```
 
 ---
@@ -352,7 +352,7 @@ pip3 install --upgrade psycopg2-binary
 pip3 install --upgrade git+https://github.com/pottertech/python_xid.git
 
 # Restart services
-brew services restart postgresql@16
+brew services restart postgresql@18
 brew services restart ollama
 openclaw gateway restart
 ```
