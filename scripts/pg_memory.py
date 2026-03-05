@@ -3539,7 +3539,7 @@ def recent(limit: int = 20, hours: int = 24) -> List[Dict]:
 
 
 # ============================================================================
-# BACKUP/RESTORE FUNCTIONS (v2.6.0)
+# BACKUP/RESTORE FUNCTIONS (v3.0.0)
 # ============================================================================
 
 def backup(output_dir: Optional[str] = None, compress: bool = True) -> str:
@@ -3759,7 +3759,7 @@ def export_json(output_file: str, since: Optional[datetime] = None) -> int:
                 observations.append(obs)
     
     export_data = {
-        "version": "2.6.0",
+        "version": "3.0.0",
         "exported_at": datetime.now().isoformat(),
         "observations": observations,
         "count": len(observations)
