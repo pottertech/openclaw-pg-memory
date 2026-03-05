@@ -30,6 +30,28 @@ python3 scripts/pg_memory.py --stats
 
 That's it! Your OpenClaw instance now has persistent, structured memory with vector search, automatic backups, and intelligent context management.
 
+### Automation Options
+
+**Option 1: OpenClaw Hook (Recommended)**
+```bash
+# Migrates markdown files when you run /new or /reset
+openclaw hooks install -l ./hooks/pg-memory-migration
+openclaw hooks enable pg-memory-migration
+```
+
+**Option 2: Daily Cron Job**
+```bash
+# Migrates files daily at 3 AM
+crontab -e
+# Add: 0 3 * * * cd /path/to/scripts && python3 migrate-markdown-to-pgmemory.py
+```
+
+**Option 3: Both (Best Coverage)**
+- Hook: Primary (runs on `/new`)
+- Cron: Backup (daily at 3 AM)
+
+See [`docs/CRON-EXAMPLES.md`](docs/CRON-EXAMPLES.md) for complete automation setup.
+
 ### OpenClaw Integration
 
 Once installed, pg-memory automatically integrates with OpenClaw:
