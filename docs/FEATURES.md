@@ -662,10 +662,10 @@ psql pg_memory -f scripts/optimize_performance.sql
 **Description:** Native integration with OpenClaw agent framework via skills and tools.
 
 **Capabilities:**
+- **Session Continuity:** Memories persist across restarts
 - **memory_search Tool:** Semantic search from OpenClaw
 - **memory_get Tool:** Safe snippet retrieval with citations
 - **Automatic Loading:** Load memories before responses
-- **Session Continuity:** Memories persist across restarts
 - **Compaction Hooks:** Integrate with OpenClaw compaction
 
 **OpenClaw Usage:**
