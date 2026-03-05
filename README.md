@@ -1,4 +1,4 @@
-# OpenClaw pg-memory v3.0.0
+# 🧠 OpenClaw pg-memory v3.0.0
 
 **Production-Ready Structured Memory for OpenClaw**
 
