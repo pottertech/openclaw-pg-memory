@@ -25,10 +25,31 @@ cd openclaw-pg-memory
 openclaw gateway restart
 
 # 4. Verify installation
-openclaw memory stats
+python3 scripts/pg_memory.py --stats
 ```
 
 That's it! Your OpenClaw instance now has persistent, structured memory with vector search, automatic backups, and intelligent context management.
+
+### OpenClaw Integration
+
+Once installed, pg-memory automatically integrates with OpenClaw:
+
+- **memory_search** → Semantic search PostgreSQL instead of markdown files
+- **memory_get** → Retrieve observations by ID with full metadata
+- **Auto-capture** → All conversations saved to PostgreSQL
+- **Context restoration** → Auto-restore after compaction
+
+**Citations change from:**
+```
+Source: MEMORY.md#42  # Before (markdown)
+```
+
+**To:**
+```
+Source: pg-memory:observations#d6k45fr24teg1v324t40  # After (PostgreSQL)
+```
+
+See [`docs/INTEGRATION-OPENCLAW.md`](docs/INTEGRATION-OPENCLAW.md) for complete integration guide.
 
 ---
 
