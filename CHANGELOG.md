@@ -1,42 +1,60 @@
-## [3.1.0] - 2026-03-05
+# Changelog
 
-### Added
-- 🎯 Observation resolution lifecycle management
-- ✅ `resolve_observation()` function - Mark observations as resolved with timestamp
-- ✅ `cleanup_resolved_observations()` function - Auto-delete old resolved observations
-- ✅ CLI command: `resolve` - Mark observation as resolved
-- ✅ CLI command: `cleanup` - Delete resolved observations older than N days
-- ✅ Standalone script: `scripts/cleanup-resolved.py`
-- ✅ Cron wrapper: `scripts/cleanup-resolved-obs.sh`
-- ✅ Automated daily cleanup at 3:00 AM via cron
-- ✅ Documentation: `docs/RELEASE-v3.1.0.md`
-- ✅ Policy: Unresolved=never delete, Resolved=180 days retention
+All notable changes to pg-memory will be documented in this file.
 
-### Changed
-- 📦 Version bump: 3.0.0 → 3.1.0
-- 📚 All documentation updated to v3.1.0
-- 🧪 Test files updated to v3.1.0
+## v3.1.1 — Context Protection (2026-03-09)
 
-### Fixed
-- 🔧 Connection pool access in resolve/cleanup functions (`mem._pool`)
-- 🔧 Standalone script for environments without full pg_memory.py dependencies
+### New: Automatic Context Overflow Prevention
+**Problem:** Agents lose context during long sessions when context window exceeds 60% (danger zone).
 
-### Technical Details
-- **Retention Policy:**
-  - Unresolved observations: NEVER deleted (permanent)
-  - Resolved observations: 180 days (6 months)
-  - Daily markdown files: 7 days (after migration)
-- **Database Schema:** No changes required (columns already exist)
-- **Backward Compatibility:** 100% compatible with v3.0.0
+**Solution:** Multi-layer protection system installed automatically with pg-memory.
 
-### Files Added
-- `scripts/cleanup-resolved.py` (standalone CLI)
-- `scripts/cleanup-resolved-obs.sh` (cron wrapper)
-- `docs/RELEASE-v3.1.0.md` (release notes)
+### What's Added
 
-### Migration
-- No database migration needed
-- No config changes required
-- Pull and run: `git pull origin main`
+| Component | Purpose | Auto-installs |
+|-----------|---------|---------------|
+| `context-guardian.sh` | Hourly bloat detection (MEMORY.md >800 lines, SESSION-STATE stale) | ✅ Yes |
+| `compaction-cron.sh` | Weekly archive of old daily notes (>7 days) | ✅ Yes |
+| `working-buffer.md` | Danger zone capture — survives context truncation | ✅ Yes |
+| `memory/archive/` | Archived content storage | ✅ Yes |
+
+### Protection Protocol
+
+```
+Session Start:
+├── Load working-buffer.md (survives compaction)
+├── Load SESSION-STATE.md (active task context)
+├── Skip MEMORY.md unless needed (<50 lines or specifically required)
+└── Load only today + yesterday daily notes
+
+Danger Zone (>60% context):
+├── STOP — don't respond
+├── LOG exchange to working-buffer.md
+└── THEN respond
+
+After Compaction:
+├── Read working-buffer.md FIRST
+├── Extract to SESSION-STATE.md
+└── Clear buffer
+```
+
+### For Existing Users
+Run `./install.sh` again — Step 9 will auto-install context protection.
+
+### For New Users
+Installed automatically with pg-memory v3.1.1+.
 
 ---
+
+## v3.1.0 — Observation Lifecycle (2026-03-05)
+
+- Added `resolved_at` timestamp
+- Added automatic cleanup of resolved observations (>180 days)
+- Schema updates with status tracking
+
+## v3.0.0 — Production Release (2026-02-28)
+
+- Complete XID migration
+- Tiered summary generation
+- Automated backups
+- OpenClaw integration

@@ -33,7 +33,7 @@ fi
 # Step 1: Check Prerequisites
 #-------------------------------------------------------------------------------
 echo ""
-log_step "Step 1/8: Checking prerequisites..."
+log_step "Step 1/9: Checking prerequisites..."
 
 if ! command -v brew &> /dev/null; then
     log_error "Homebrew not installed!"
@@ -277,6 +277,112 @@ else
     log_warn "OpenClaw config not found. Manual configuration required."
     echo "   See docs/MANUAL-INSTALL.md for instructions"
 fi
+
+#-------------------------------------------------------------------------------
+# Step 9: Context Protection System (NEW v3.1.1)
+#-------------------------------------------------------------------------------
+echo ""
+log_step "Step 9/9: Installing Context Protection..."
+
+WORKSPACE_ROOT="$HOME/.openclaw/workspace"
+MEMORY_DIR="$WORKSPACE_ROOT/memory"
+mkdir -p "$MEMORY_DIR/archive"
+
+log_info "Creating context guardian..."
+cat > "$MEMORY_DIR/context-guardian.sh" << 'GUARDIAN_EOF'
+#!/bin/bash
+# Context Guardian — prevents memory bloat
+# Run hourly via cron
+
+WORKSPACE="$HOME/.openclaw/workspace"
+MEMORY_LINES=$(wc -l < "$WORKSPACE/MEMORY.md" 2>/dev/null || echo 0)
+WARNINGS=0
+
+echo "🧹 Context Guardian Check — $(date)"
+echo "=================================="
+
+# Check MEMORY.md bloat
+if [ $MEMORY_LINES -gt 800 ]; then
+    echo "⚠️ WARNING: MEMORY.md is $MEMORY_LINES lines. Run compaction."
+    WARNINGS=$((WARNINGS + 1))
+else
+    echo "✅ MEMORY.md: $MEMORY_LINES lines (healthy)"
+fi
+
+# Check SESSION-STATE staleness
+if [ -f "$WORKSPACE/SESSION-STATE.md" ]; then
+    LAST_UPDATE=$(grep -o "Updated:.*EST\|Updated:.*EDT" "$WORKSPACE/SESSION-STATE.md" | head -1)
+    if echo "$LAST_UPDATE" | grep -q "2026-02-19\|2026-02-2[0-9]"; then
+        echo "⚠️ SESSION-STATE.md is stale (February). Needs refresh."
+        WARNINGS=$((WARNINGS + 1))
+    else
+        echo "✅ SESSION-STATE.md: $LAST_UPDATE"
+    fi
+fi
+
+# Check working buffer
+if [ -f "$WORKSPACE/memory/working-buffer.md" ]; then
+    BUFFER_LINES=$(wc -l < "$WORKSPACE/memory/working-buffer.md")
+    if [ $BUFFER_LINES -gt 500 ]; then
+        echo "⚠️ working-buffer.md is $BUFFER_LINES lines. Extract and clear."
+        WARNINGS=$((WARNINGS + 1))
+    else
+        echo "✅ working-buffer.md: $BUFFER_LINES lines (healthy)"
+    fi
+fi
+
+echo "=================================="
+if [ $WARNINGS -eq 0 ]; then
+    echo "✅ All systems healthy!"
+    exit 0
+else
+    echo "⚠️ $WARNINGS warning(s) found."
+    exit 1
+fi
+GUARDIAN_EOF
+chmod +x "$MEMORY_DIR/context-guardian.sh"
+
+log_info "Creating compaction script..."
+cat > "$MEMORY_DIR/compaction-cron.sh" << 'COMPACT_EOF'
+#!/bin/bash
+# Weekly compaction — archive old content
+
+WORKSPACE="$HOME/.openclaw/workspace"
+DATE=$(date +%Y-%m-%d)
+ARCHIVE_DIR="$WORKSPACE/memory/archive"
+mkdir -p "$ARCHIVE_DIR"
+
+# Archive old daily notes (>7 days)
+find "$WORKSPACE/memory/" -name "2026-*.md" -mtime +7 -exec mv {} "$ARCHIVE_DIR/" \; 2>/dev/null || true
+
+# Log
+mkdir -p "$WORKSPACE/logs"
+echo "[$DATE] Compaction complete" >> "$WORKSPACE/logs/compaction.log"
+COMPACT_EOF
+chmod +x "$MEMORY_DIR/compaction-cron.sh"
+
+log_info "Creating working buffer..."
+echo "# Working Buffer (Danger Zone Log)" > "$MEMORY_DIR/working-buffer.md"
+echo "**Created:** $(date +%Y-%m-%d)" >> "$MEMORY_DIR/working-buffer.md"
+echo "**Purpose:** Survive context truncation" >> "$MEMORY_DIR/working-buffer.md"
+echo "" >> "$MEMORY_DIR/working-buffer.md"
+echo "## Entry Format" >> "$MEMORY_DIR/working-buffer.md"
+echo '```' >> "$MEMORY_DIR/working-buffer.md"
+echo "## [timestamp] Human" >> "$MEMORY_DIR/working-buffer.md"
+echo "[message summary]" >> "$MEMORY_DIR/working-buffer.md"
+echo "" >> "$MEMORY_DIR/working-buffer.md"
+echo "## [timestamp] Agent" >> "$MEMORY_DIR/working-buffer.md"
+echo "[response summary + key details]" >> "$MEMORY_DIR/working-buffer.md"
+echo '```' >> "$MEMORY_DIR/working-buffer.md"
+
+log_info "Installing cron jobs..."
+(crontab -l 2>/dev/null | grep -v "context-guardian\|compaction-cron"; \
+ echo "# pg-memory Context Protection — $(date +%Y-%m-%d)"
+ echo "0 * * * * $MEMORY_DIR/context-guardian.sh >> $WORKSPACE_ROOT/logs/guardian.log 2>&1"
+ echo "0 2 * * 0 $MEMORY_DIR/compaction-cron.sh >> $WORKSPACE_ROOT/logs/compaction.log 2>&1"
+) | crontab -
+
+log_info "Context Protection installed!"
 
 #-------------------------------------------------------------------------------
 # Setup Automated Backups
