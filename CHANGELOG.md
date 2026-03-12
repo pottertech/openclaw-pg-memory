@@ -79,7 +79,7 @@ openclaw gateway restart
 - Live context management → token-guardian
 
 ---
-**Problem:** Agents lose context during long sessions when context window exceeds 60% (danger zone).
+**Problem:** Agents need durable memory restoration after token-guardian compaction.
 
 **Solution:** Multi-layer protection system installed automatically with pg-memory.
 

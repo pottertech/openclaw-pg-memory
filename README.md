@@ -58,7 +58,7 @@ openclaw gateway restart
 python3 scripts/pg_memory.py --stats
 ```
 
-That's it! Your OpenClaw instance now has persistent, structured memory with vector search, automatic backups, and intelligent context management.
+That's it! Your OpenClaw instance now has persistent, structured memory with vector search, automatic backups, and durable memory management.
 
 ### Automation Options
 
