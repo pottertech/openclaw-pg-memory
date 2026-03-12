@@ -75,8 +75,8 @@ openclaw gateway restart
 - `context-guardian.sh` → token-guardian
 - `compaction-cron.sh` → token-guardian
 - `working-buffer.md` → token-guardian
-- Bloat detection → token-guardian
-- Live context management → token-guardian
+- Live context monitoring → token-guardian
+- Token threshold checks → token-guardian
 
 ---
 **Problem:** Agents lose context during long sessions when context window exceeds 60% (danger zone).
