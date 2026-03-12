@@ -1,11 +1,41 @@
-# 🧠 OpenClaw pg-memory v3.1.1
+# 🧠 OpenClaw pg-memory v3.1.2
 
 **Production-Ready Structured Memory for OpenClaw**
 
-> **Version: 3.1.1 (Production Release)  
-> **Status:** ✅ Stable, Ready for Production  
+> **Version: 3.1.2 (Separation Release)**  
+> **Status:** ✅ Stable, Clean Separation from token-guardian  
 > **License:** MIT  
 > **Author:** Potter's Quill Media
+
+---
+
+## 🔒 Separation from token-guardian
+
+**pg-memory** and **token-guardian** are now cleanly separated:
+
+| Feature | Owned By |
+|---------|----------|
+| **Durable storage** | ✅ pg-memory |
+| **Semantic retrieval** | ✅ pg-memory |
+| **Context restoration** | ✅ pg-memory |
+| **Long-term summaries** | ✅ pg-memory |
+| **Token threshold monitoring** | 🔒 token-guardian |
+| **Live context reduction** | 🔒 token-guardian |
+| **Bloat detection** | 🔒 token-guardian |
+| **Workspace cleanup** | 🔒 token-guardian |
+
+**Install both for complete memory management:**
+```bash
+# 1. Install pg-memory (durable storage)
+git clone https://github.com/pottertech/openclaw-pg-memory.git
+cd openclaw-pg-memory && ./install.sh
+
+# 2. Install token-guardian (live context)
+git clone https://github.com/pottertech/openclaw-token-guardian.git
+cd openclaw-token-guardian && ./install.sh
+```
+
+See [`docs/SEPARATION.md`](docs/SEPARATION.md) for complete ownership details.
 
 ---
 
@@ -77,14 +107,24 @@ See [`docs/INTEGRATION-OPENCLAW.md`](docs/INTEGRATION-OPENCLAW.md) for complete 
 
 ## 📋 What You Get
 
-### **Core Features**
+### **Core Features (pg-memory owns)**
 
-- ✅ **Persistent Memory** - Never lose conversation context again
-- ✅ **Vector Search** - Semantic search across all your conversations
-- ✅ **Automatic Backups** - Daily backups at 3 AM with 7-day retention
-- ✅ **Context Management** - Intelligent compaction with summary generation
-- ✅ **Multi-Session Support** - Share memory across multiple OpenClaw instances
-- ✅ **CLI Tools** - Command-line access to all memory functions
+- ✅ **Persistent Storage** - Durable PostgreSQL storage for all conversations
+- ✅ **Semantic Retrieval** - Vector search with BGE-M3 embeddings  
+- ✅ **Context Restoration** - Restore memory after OpenClaw compaction
+- ✅ **Long-term Summaries** - Project summaries and checkpoints
+- ✅ **Automatic Backups** - Daily backups at 3 AM with retention
+- ✅ **Multi-Session Support** - Share memory across OpenClaw instances
+- ✅ **CLI Tools** - Command-line access to memory functions
+
+### **NOT Included (token-guardian owns)**
+
+❌ **Live Context Management** - Real-time token threshold monitoring  
+❌ **Bloat Detection** - Hourly MEMORY.md size checking  
+❌ **Workspace Cleanup** - File pruning and archive rotation  
+❌ **Emergency Reduction** - Active session pruning
+
+> Install [openclaw-token-guardian](https://github.com/pottertech/openclaw-token-guardian) for these features.
 
 ### **Technical Specifications**
 
