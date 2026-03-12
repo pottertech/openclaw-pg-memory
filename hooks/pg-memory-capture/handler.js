@@ -1,7 +1,15 @@
 #!/usr/bin/env node
 /**
- * pg-memory Compaction Hook for OpenClaw
- * Simplified version - calls Python handler directly
+ * pg-memory Capture Hook for OpenClaw
+ * 
+ * PURPOSE: Capture memory to PostgreSQL before compaction, restore from stored memory after.
+ * 
+ * OWNERSHIP:
+ * - This hook handles MEMORY PERSISTENCE ONLY
+ * - Token management, overflow protection, and compaction decisions are owned by openclaw-token-guardian
+ * - This hook does NOT decide when compaction happens, monitor tokens, or prevent overflow
+ * 
+ * For token management, install: openclaw-token-guardian
  */
 
 import { exec } from 'node:child_process';
@@ -43,8 +51,12 @@ async function runHandler(mode, data) {
   });
 }
 
-export async function handleCompactionStart(params) {
-  console.log('[pg-memory] 🧠 Pre-compaction save starting...');
+/**
+ * Capture memory to PostgreSQL before compaction
+ * NOTE: Compaction decision made by token-guardian. This only handles persistence.
+ */
+export async function handleCaptureStart(params) {
+  console.log('[pg-memory] 🧠 Capturing memory to PostgreSQL...');
   
   if (!await fileExists(MEMORY_HANDLER)) {
     console.warn('[pg-memory] Handler not found, skipping');
@@ -62,18 +74,22 @@ export async function handleCompactionStart(params) {
       channel_id: params.channelId,
       user: params.user
     },
-    // NOTE: Token management handled by token-guardian
-    // pg-memory only handles memory persistence
+    // Token management handled by token-guardian
+    // pg-memory only handles durable persistence
     timestamp: new Date().toISOString()
   };
   
-  await runHandler('pre-compaction', data);
-  console.log('[pg-memory] ✅ Pre-compaction complete');
+  await runHandler('capture', data);
+  console.log('[pg-memory] ✅ Memory captured to PostgreSQL');
   return params;
 }
 
-export async function handleCompactionEnd(params) {
-  console.log('[pg-memory] 🧠 Post-compaction context restore...');
+/**
+ * Restore memory from PostgreSQL after compaction
+ * NOTE: Restoration timing decided by token-guardian. This only loads persisted memory.
+ */
+export async function handleRestoreEnd(params) {
+  console.log('[pg-memory] 🧠 Restoring memory from PostgreSQL...');
   
   if (!await fileExists(MEMORY_HANDLER)) {
     console.warn('[pg-memory] Handler not found, skipping');
@@ -91,9 +107,13 @@ export async function handleCompactionEnd(params) {
     timestamp: new Date().toISOString()
   };
   
-  await runHandler('post-compaction', data);
-  console.log('[pg-memory] ✅ Post-compaction complete');
+  await runHandler('restore', data);
+  console.log('[pg-memory] ✅ Memory restored from PostgreSQL');
   return params;
 }
 
-export default { handleCompactionStart, handleCompactionEnd };
+// Backwards compatibility aliases (deprecated)
+export const handleCompactionStart = handleCaptureStart;
+export const handleCompactionEnd = handleRestoreEnd;
+
+export default { handleCaptureStart, handleRestoreEnd, handleCompactionStart, handleCompactionEnd };

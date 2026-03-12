@@ -280,6 +280,123 @@ class MemoryConfig:
     cache_size: int = int(os.getenv("PG_MEMORY_CACHE_SIZE", "100"))
     cache_ttl: int = int(os.getenv("PG_MEMORY_CACHE_TTL", "300"))  # 5 minutes
 
+# ============================================================================
+# TOKEN-GUARDIAN CONFLICT GUARD
+# ============================================================================
+
+def detect_token_guardian() -> bool:
+    """Detect if openclaw-token-guardian is installed.
+    
+    Checks for:
+    - token-guardian config files
+    - token-guardian hooks
+    - token-guardian environment variables
+    
+    Returns:
+        bool: True if token-guardian detected
+    """
+    home = Path.home()
+    
+    # Check for token-guardian config
+    tg_config = home / '.openclaw' / 'workspace' / 'config' / 'token-guardian.yaml'
+    if tg_config.exists():
+        return True
+    
+    # Check for token-guardian hooks
+    tg_hooks = home / '.openclaw' / 'workspace' / 'hooks' / 'token-guardian'
+    if tg_hooks.exists():
+        return True
+    
+    # Check for token-guardian scripts
+    tg_scripts = home / '.openclaw' / 'workspace' / 'skills' / 'token-guardian'
+    if tg_scripts.exists():
+        return True
+    
+    # Check environment variable
+    if os.getenv('TOKEN_GUARDIAN_ENABLED', '').lower() == 'true':
+        return True
+    
+    return False
+
+
+class ConflictGuard:
+    """Prevents pg-memory from overlapping with token-guardian responsibilities."""
+    
+    OVERLAP_FEATURES = [
+        ('enable_context_guardian', 'context guardian/bloat detection'),
+        ('enable_compaction_cron', 'compaction cron'),
+        ('enable_token_monitoring', 'token monitoring'),
+        ('enable_auto_pruning', 'auto pruning'),
+        ('enable_emergency_reduction', 'emergency context reduction'),
+    ]
+    
+    @classmethod
+    def check(cls) -> Dict[str, any]:
+        """Check for conflicts and return status.
+        
+        Returns:
+            Dict with:
+            - token_guardian_detected: bool
+            - conflicts: list of enabled overlap features
+            - warnings: list of warning messages
+            - blocked: bool (True if should block execution)
+        """
+        tg_detected = detect_token_guardian()
+        conflicts = []
+        warnings = []
+        blocked = False
+        
+        # Check each overlap feature
+        for env_var, description in cls.OVERLAP_FEATURES:
+            enabled = os.getenv(f'PG_MEMORY_{env_var.upper()}', 'false').lower() == 'true'
+            if enabled:
+                if tg_detected:
+                    conflicts.append({
+                        'feature': env_var,
+                        'description': description,
+                        'action': 'auto-disabled'
+                    })
+                    warnings.append(
+                        f"⚠️  OVERLAP: {description} disabled (token-guardian detected). "
+                        f"Set PG_MEMORY_{env_var.upper()}=false or uninstall token-guardian."
+                    )
+                    # Disable it
+                    os.environ[f'PG_MEMORY_{env_var.upper()}'] = 'false'
+                else:
+                    warnings.append(
+                        f"⚠️  NOTICE: {description} enabled without token-guardian. "
+                        f"Consider installing token-guardian for context management."
+                    )
+        
+        return {
+            'token_guardian_detected': tg_detected,
+            'conflicts': conflicts,
+            'warnings': warnings,
+            'blocked': blocked
+        }
+    
+    @classmethod
+    def log_status(cls):
+        """Log conflict guard status."""
+        status = cls.check()
+        
+        if status['token_guardian_detected']:
+            print("🔒 token-guardian detected - overlap features disabled")
+        
+        for warning in status['warnings']:
+            print(warning)
+        
+        if status['conflicts']:
+            print(f"\n✅ pg-memory conflict guard: {len(status['conflicts'])} overlap feature(s) disabled")
+            print("   pg-memory owns: durable storage, retrieval, restoration")
+            print("   token-guardian owns: context management, overflow protection")
+        
+        return status
+
+
+# Initialize conflict guard on module load
+_conflict_status = ConflictGuard.log_status()
+
 
 # ============================================================================
 # INPUT VALIDATION
