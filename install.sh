@@ -7,10 +7,65 @@
 
 set -e  # Exit on error
 
+# Parse arguments
+SKIP_GUARDIAN=false
+SKIP_CRON=false
+SKIP_TOKEN_MGMT=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --skip-guardian)
+            SKIP_GUARDIAN=true
+            shift
+            ;;
+        --skip-cron)
+            SKIP_CRON=true
+            shift
+            ;;
+        --skip-token-mgmt)
+            SKIP_TOKEN_MGMT=true
+            shift
+            ;;
+        --separation-mode)
+            SKIP_GUARDIAN=true
+            SKIP_CRON=true
+            SKIP_TOKEN_MGMT=true
+            shift
+            ;;
+        --help)
+            echo "Usage: ./install.sh [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  --skip-guardian      Skip context guardian installation"
+            echo "  --skip-cron          Skip cron job installation"
+            echo "  --skip-token-mgmt    Skip token management features"
+            echo "  --separation-mode    Enable full separation from token-guardian"
+            echo "  --help               Show this help message"
+            echo ""
+            echo "Note: Use --separation-mode when token-guardian manages"
+            echo "      all context/token operations."
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
 echo "=========================================="
 echo "🦞 OpenClaw pg-memory v3.1.1 Installer"
 echo "=========================================="
 echo ""
+
+if [[ "$SKIP_GUARDIAN" == true ]] || [[ "$SKIP_CRON" == true ]] || [[ "$SKIP_TOKEN_MGMT" == true ]]; then
+    echo "⚙️  Separation mode enabled:"
+    [[ "$SKIP_GUARDIAN" == true ]] && echo "   - Context guardian: SKIPPED"
+    [[ "$SKIP_CRON" == true ]] && echo "   - Cron jobs: SKIPPED"
+    [[ "$SKIP_TOKEN_MGMT" == true ]] && echo "   - Token management: DISABLED"
+    echo ""
+fi
 
 # Colors
 RED='\033[0;31m'
@@ -169,6 +224,7 @@ mkdir -p "$CONFIG_DIR"
 cat > "$CONFIG_DIR/memory.yaml" << EOF
 # pg-memory v3.1.1 Configuration
 # Auto-generated: $(date)
+# Separation Mode: token-guardian owns context management
 
 memory:
   primary_backend: postgresql
@@ -176,6 +232,21 @@ memory:
   retention_days: 7
   agent_id: openclaw
   fallback_on_pgdb_down: true
+  
+  # Token-guardian owns these (default: false when token-guardian present)
+  enable_context_guardian: false
+  enable_compaction_cron: false
+  enable_token_monitoring: false
+  enable_auto_pruning: false
+  enable_emergency_reduction: false
+  
+  # pg-memory owns these (default: true)
+  enable_persistent_storage: true
+  enable_embeddings: true
+  enable_semantic_retrieval: true
+  enable_memory_capture: true
+  enable_summaries: true
+  enable_context_restoration: true
 
 postgresql:
   host: localhost
@@ -288,8 +359,10 @@ WORKSPACE_ROOT="$HOME/.openclaw/workspace"
 MEMORY_DIR="$WORKSPACE_ROOT/memory"
 mkdir -p "$MEMORY_DIR/archive"
 
-log_info "Creating context guardian..."
-cat > "$MEMORY_DIR/context-guardian.sh" << 'GUARDIAN_EOF'
+# Context Guardian — CONDITIONAL (skip if token-guardian manages this)
+if [[ "$SKIP_GUARDIAN" == false ]]; then
+    log_info "Creating context guardian..."
+    cat > "$MEMORY_DIR/context-guardian.sh" << 'GUARDIAN_EOF'
 #!/bin/bash
 # Context Guardian — prevents memory bloat
 # Run hourly via cron
@@ -340,9 +413,14 @@ else
     exit 1
 fi
 GUARDIAN_EOF
-chmod +x "$MEMORY_DIR/context-guardian.sh"
+    chmod +x "$MEMORY_DIR/context-guardian.sh"
+else
+    log_info "Skipping context guardian (--skip-guardian or --separation-mode)"
+fi
 
-log_info "Creating compaction script..."
+# Compaction Script — CONDITIONAL (skip if token-guardian manages this)
+if [[ "$SKIP_CRON" == false ]]; then
+    log_info "Creating compaction script..."
 cat > "$MEMORY_DIR/compaction-cron.sh" << 'COMPACT_EOF'
 #!/bin/bash
 # Weekly compaction — archive old content
@@ -383,6 +461,9 @@ log_info "Installing cron jobs..."
 ) | crontab -
 
 log_info "Context Protection installed!"
+else
+    log_info "Skipping cron jobs (--skip-cron or --separation-mode)"
+fi
 
 #-------------------------------------------------------------------------------
 # Setup Automated Backups
