@@ -1,6 +1,6 @@
 #!/bin/bash
 #===============================================================================
-# OpenClaw pg-memory v3.0.0 - Automated Installer
+# OpenClaw pg-memory v3.1.1 - Automated Installer
 # Purpose: Complete installation in one command
 # Usage: ./install.sh
 #===============================================================================
@@ -8,7 +8,7 @@
 set -e  # Exit on error
 
 echo "=========================================="
-echo "🦞 OpenClaw pg-memory v3.0.0 Installer"
+echo "🦞 OpenClaw pg-memory v3.1.1 Installer"
 echo "=========================================="
 echo ""
 
@@ -167,7 +167,7 @@ mkdir -p "$CONFIG_DIR"
 
 # Create memory.yaml config
 cat > "$CONFIG_DIR/memory.yaml" << EOF
-# pg-memory v3.0.0 Configuration
+# pg-memory v3.1.1 Configuration
 # Auto-generated: $(date)
 
 memory:
@@ -188,7 +188,7 @@ log_info "Created memory.yaml configuration"
 
 # Set environment variables
 ENV_BLOCK="
-# pg-memory v3.0.0 Environment
+# pg-memory v3.1.1 Environment
 export PG_MEMORY_DB=$DB_NAME
 export PG_MEMORY_USER=$DB_USER
 export PG_MEMORY_HOST=localhost
@@ -442,7 +442,7 @@ echo ""
 echo "✅ What was installed:"
 echo "   - PostgreSQL 18 with pgvector"
 echo "   - Ollama with BGE-M3 embeddings"
-echo "   - pg-memory v3.0.0 scripts"
+echo "   - pg-memory v3.1.1 scripts"
 echo "   - OpenClaw integration hook"
 echo "   - Automated daily backups (3 AM)"
 echo ""
@@ -468,5 +468,5 @@ echo "   - Usage: docs/USAGE.md"
 echo "   - Configuration: docs/CONFIGURATION.md"
 echo "   - Troubleshooting: docs/TROUBLESHOOTING.md"
 echo ""
-echo "🎬 pg-memory v3.0.0 is ready for production!"
+echo "🎬 pg-memory v3.1.1 is ready for production!"
 echo "=========================================="

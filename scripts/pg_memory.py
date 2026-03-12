@@ -3866,7 +3866,7 @@ def export_json(output_file: str, since: Optional[datetime] = None) -> int:
                 observations.append(obs)
     
     export_data = {
-        "version": "3.0.0",
+        "version": "3.1.1",
         "exported_at": datetime.now().isoformat(),
         "observations": observations,
         "count": len(observations)
