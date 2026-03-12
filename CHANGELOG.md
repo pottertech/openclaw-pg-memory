@@ -2,9 +2,83 @@
 
 All notable changes to pg-memory will be documented in this file.
 
-## v3.1.1 — Context Protection (2026-03-09)
+## v3.1.2 — Clean Separation from token-guardian (2026-03-12)
 
-### New: Automatic Context Overflow Prevention
+### BREAKING CHANGE: Removed Context Protection
+
+**Problem:** v3.1.1 introduced Context Protection features that overlapped with token-guardian.
+
+**Solution:** Complete separation of responsibilities.
+
+### What Changed
+
+| Feature | v3.1.1 | v3.1.2 |
+|---------|--------|--------|
+| Context Guardian | ✅ Auto-installed | ❌ Removed |
+| Compaction Cron | ✅ Auto-installed | ❌ Removed |
+| Working Buffer | ✅ Auto-created | ❌ Removed |
+| Bloat Detection | ✅ Hourly checks | ❌ Removed |
+| Token Monitoring | ✅ Enabled | ❌ Disabled |
+| Durable Storage | ✅ | ✅ |
+| Semantic Retrieval | ✅ | ✅ |
+| Context Restoration | ✅ | ✅ |
+
+### New: Clean Separation
+
+**pg-memory owns:**
+- Durable storage (PostgreSQL)
+- Semantic embeddings (BGE-M3)
+- Vector retrieval
+- Context restoration post-compaction
+- Long-term summaries
+- Backups
+
+**token-guardian owns:**
+- Token threshold monitoring
+- Live context reduction
+- Bloat detection
+- Workspace cleanup
+- Emergency pruning
+
+### Migration from v3.1.1
+
+```bash
+# 1. Update pg-memory
+git pull
+./install.sh --separation-mode
+
+# 2. Install token-guardian
+git clone https://github.com/pottertech/openclaw-token-guardian.git
+cd openclaw-token-guardian && ./install.sh
+
+# 3. Remove legacy cron jobs
+crontab -e
+# Delete: context-guardian, compaction-cron
+
+# 4. Restart
+openclaw gateway restart
+```
+
+### Documentation
+- Added `docs/SEPARATION.md` with complete ownership guide
+- Updated README with ownership matrix
+- Added migration guide
+
+---
+
+## v3.1.1 — DEPRECATED: Context Protection (2026-03-09)
+
+> ⚠️ **DEPRECATED:** These features moved to token-guardian in v3.1.2
+
+### Deprecated Features (now in token-guardian)
+
+- `context-guardian.sh` → token-guardian
+- `compaction-cron.sh` → token-guardian
+- `working-buffer.md` → token-guardian
+- Bloat detection → token-guardian
+- Live context management → token-guardian
+
+---
 **Problem:** Agents lose context during long sessions when context window exceeds 60% (danger zone).
 
 **Solution:** Multi-layer protection system installed automatically with pg-memory.
