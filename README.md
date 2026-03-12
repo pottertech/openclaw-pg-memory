@@ -17,7 +17,7 @@
 |---------|----------|
 | **Durable storage** | ✅ pg-memory |
 | **Semantic retrieval** | ✅ pg-memory |
-| **Context restoration** | ✅ pg-memory |
+| **Durable memory restoration** | ✅ pg-memory |
 | **Long-term summaries** | ✅ pg-memory |
 | **Token threshold monitoring** | 🔒 token-guardian |
 | **Live context reduction** | 🔒 token-guardian |
@@ -89,7 +89,7 @@ Once installed, pg-memory automatically integrates with OpenClaw:
 - **memory_search** → Semantic search PostgreSQL instead of markdown files
 - **memory_get** → Retrieve observations by ID with full metadata
 - **Auto-capture** → All conversations saved to PostgreSQL
-- **Context restoration** → Auto-restore after compaction
+- **Durable memory restoration** → Auto-restore after compaction
 
 **Citations change from:**
 ```
@@ -111,7 +111,7 @@ See [`docs/INTEGRATION-OPENCLAW.md`](docs/INTEGRATION-OPENCLAW.md) for complete 
 
 - ✅ **Persistent Storage** - Durable PostgreSQL storage for all conversations
 - ✅ **Semantic Retrieval** - Vector search with BGE-M3 embeddings  
-- ✅ **Context Restoration** - Restore memory after OpenClaw compaction
+- ✅ **Durable Memory Restoration** - Restore memory after OpenClaw compaction
 - ✅ **Long-term Summaries** - Project summaries and checkpoints
 - ✅ **Automatic Backups** - Daily backups at 3 AM with retention
 - ✅ **Multi-Session Support** - Share memory across OpenClaw instances
@@ -119,7 +119,7 @@ See [`docs/INTEGRATION-OPENCLAW.md`](docs/INTEGRATION-OPENCLAW.md) for complete 
 
 ### **NOT Included (token-guardian owns)**
 
-❌ **Live Context Management** - Real-time token threshold monitoring  
+❌ **Live Token Monitoring (token-guardian)** - Real-time token threshold monitoring  
 ❌ **Bloat Detection** - Hourly MEMORY.md size checking  
 ❌ **Workspace Cleanup** - File pruning and archive rotation  
 ❌ **Emergency Reduction** - Active session pruning
@@ -186,9 +186,9 @@ cat ~/.openclaw/openclaw.json | grep -A5 "pg-memory"
 
 Should show:
 ```json
-"pg-memory-compaction": {
+"pg-memory-restore": {
   "enabled": true,
-  "path": "./hooks/pg-memory-compaction/handler.js"
+  "path": "./hooks/pg-memory-restore/handler.js"
 }
 ```
 
@@ -236,7 +236,7 @@ openclaw-pg-memory/
 │   ├── memory_handler.py      # OpenClaw integration
 │   └── upgrade-schema.sql     # Schema migration (if needed)
 ├── hooks/
-│   └── pg-memory-compaction/
+│   └── pg-memory-restore/
 │       └── handler.js         # OpenClaw compaction hook
 ├── sql/
 │   ├── init_schema.sql        # Database schema
@@ -257,7 +257,7 @@ pg-memory uses PostgreSQL with the following key tables:
 - **observations** - Structured memory entries
 - **raw_exchanges** - Raw conversation data
 - **summaries** - Auto-generated session summaries
-- **context_checkpoints** - Compaction checkpoints
+- **compaction_checkpoints** - Compaction checkpoints
 - **decision_log** - Tracked decisions
 - **embedding_cache** - Cached vector embeddings
 
@@ -359,7 +359,7 @@ openclaw gateway restart
 |-----------|------|-------|
 | **Write Observation** | <10ms | With embedding |
 | **Semantic Search** | <50ms | 1000+ observations |
-| **Context Retrieval** | <100ms | Full session restore |
+| **Durable Memory Retrieval** | <100ms | Full session restore |
 | **Backup (Daily)** | ~2s | Compressed |
 
 ### **Storage**
@@ -419,7 +419,7 @@ MIT License - See [LICENSE](LICENSE) file
 - ✅ **Complete XID Migration** - All tables use time-sorted IDs
 - ✅ **Tiered Summary Generation** - Intelligent compaction summaries
 - ✅ **Automated Backups** - Daily backups with retention policy
-- ✅ **Enhanced Context Management** - Better pre/post compaction handling
+- ✅ **Durable Memory Restoration** - Better pre/post compaction handling
 
 ### **Improvements**
 
