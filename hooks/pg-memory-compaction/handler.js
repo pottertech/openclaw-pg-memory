@@ -62,11 +62,8 @@ export async function handleCompactionStart(params) {
       channel_id: params.channelId,
       user: params.user
     },
-    context_stats: {
-      current_tokens: params.contextTokens || 0,
-      max_tokens: params.maxContextTokens || 16000,
-      compression_count: params.compressionCount || 0
-    },
+    // NOTE: Token management handled by token-guardian
+    // pg-memory only handles memory persistence
     timestamp: new Date().toISOString()
   };
   
